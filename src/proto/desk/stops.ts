@@ -51,7 +51,7 @@ export const DESK_STOPS: DeskStop[] = [
   // Pegboard: teks di dinding polos di sebelah kiri (pengalaman) / kanan (pendidikan).
   { id: "experience", pos: [-0.74, BOARD_Y + 0.02, WALL_Z + 0.95], look: [-0.74, BOARD_Y, WALL_Z], span: 0.66, text: { side: -1, top: -0.46 } },
   { id: "certificates", pos: [0.12, BOARD_Y + 0.02, WALL_Z + 1.0], look: [0.12, BOARD_Y + 0.02, WALL_Z], span: 1.1, text: { side: 1, top: 0.2 } },
-  { id: "education", pos: [1.32, BOARD_Y + 0.02, WALL_Z + 1.0], look: [1.3, BOARD_Y, WALL_Z], span: 0.78, text: { side: 1, top: 0.22 } },
+  { id: "education", pos: [1.56, BOARD_Y + 0.02, WALL_Z + 1.0], look: [1.54, BOARD_Y, WALL_Z], span: 0.78, text: { side: 1, top: 0.22 } },
   // Kontak & footer di layar iPhone
   { id: "contact", pos: [0.645, TOP + 0.25, 0.322], look: [0.642, TOP, 0.262], span: 0.11, text: { side: -1 } },
 ];

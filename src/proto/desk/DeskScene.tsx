@@ -593,10 +593,10 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
         </group>
       )}
       {/* Pendidikan: sudut kelulusan (panji, rak buku, topi toga) di dinding kanan pegboard */}
-      {fonts && <GradCorner fonts={fonts} position={[1.32, BY + 0.02, WALL_Z]} />}
+      {fonts && <GradCorner fonts={fonts} position={[1.56, BY + 0.02, WALL_Z]} />}
       {/* Post-it pendidikan ditempel langsung di dinding, di tengah sudut kelulusan */}
       {hands && (
-        <PostIt note={copy.education} hands={hands} style={STYLE.education} size={0.18} tape position={[1.32, BY - 0.01, WALL_Z + 0.002]} rotation={[0, 0, 0.025]} />
+        <PostIt note={copy.education} hands={hands} style={STYLE.education} size={0.18} tape position={[1.56, BY - 0.01, WALL_Z + 0.002]} rotation={[0, 0, 0.025]} />
       )}
 
       {/* Penjelasan tiap perhentian: teks 3D melayang di sisi kosong bingkai */}

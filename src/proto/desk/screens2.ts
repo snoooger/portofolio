@@ -535,19 +535,17 @@ export function thesisScreen(f: F) {
   const { c, ctx } = canvas(W, H);
   ctx.fillStyle = "#e9e4dc";
   ctx.fillRect(0, 0, W, H);
-  // Jendela notebook
+  // Panel notebook
   const nx = 40, ny = 40, nw = 900, nh = 820;
   rr(ctx, nx, ny, nw, nh, 14, "#fbfaf7", "#d6d0c6");
   rr(ctx, nx, ny, nw, 46, 14, "#f0ece5");
   ctx.fillStyle = "#f0ece5";
   ctx.fillRect(nx, ny + 30, nw, 16);
-  ["#ff5f57", "#febc2e", "#28c840"].forEach((col, i) => {
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.arc(nx + 24 + i * 22, ny + 23, 7, 0, Math.PI * 2);
-    ctx.fill();
-  });
-  text(ctx, "bilstm_attention.ipynb", nx + nw / 2, ny + 30, `500 16px ${f.mono}`, "#6b655c", "center");
+  // Panel di dalam jendela "Notebook" macOS: cukup label tab berkas (tanpa tombol jendela sendiri).
+  rr(ctx, nx + 18, ny + 9, 236, 30, 8, "#fbfaf7", "#e2ddd4");
+  ctx.fillStyle = "#c2552f";
+  ctx.fillRect(nx + 32, ny + 18, 12, 12);
+  text(ctx, "bilstm_attention.ipynb", nx + 54, ny + 30, `500 15px ${f.mono}`, "#4a463f");
   // Sel kode
   const code: [string, string][][] = [
     [["model", "#1d2333"], [" = ", "#6b655c"], ["BiLSTMAttention", "#8c3a1f"], ["(vocab, emb=", "#1d2333"], ["128", "#2f6fa3"], [", layers=", "#1d2333"], ["2", "#2f6fa3"], [")", "#1d2333"]],

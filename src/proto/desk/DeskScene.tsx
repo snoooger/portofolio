@@ -57,10 +57,11 @@ const STYLE: Record<string, NoteStyle> = {
   skill2: { hand: "gochi", ink: INKS.red, paper: "lined", deco: "highlight", bullets: "check" },
   experience: { hand: "patrick", ink: INKS.blue, deco: "underline", doodle: "arrow" },
   certificates: { hand: "caveat", paper: "dots", deco: "circle", doodle: "star" },
-  education: { hand: "kalam", ink: INKS.green, paper: "grid", deco: "box", doodle: "smile" },
+  education: { hand: "kalam", ink: INKS.green, paper: "grid", deco: "box" },
 };
 
 const PEG_FIT: Fit = { axis: "z", size: 2.2 };
+const BINDER_HIDE = ["binder_notebook_closed"];
 /** Pegboard SKÅDIS berwarna putih seperti aslinya. */
 const whitePeg = (m: THREE.Mesh) => {
   m.material = new THREE.MeshStandardMaterial({ color: "#fbfaf6", roughness: 0.5, metalness: 0.02 });
@@ -354,7 +355,7 @@ export function DeskScene({ f, copy, quality: q, onReady }: { f: Drive; copy: Co
   const mat = useMemo(() => matTexture("#2f6f55"), []); // hijau cutting mat klasik
   useEffect(() => () => mat.dispose(), [mat]);
 
-  const paper = useMemo(() => (fonts ? heroPaper(copy.portfolio, NAME, copy.role, fonts.serif, fonts.hand, fonts.mono) : null), [fonts, copy]);
+  const paper = useMemo(() => (fonts ? heroPaper(copy.portfolio, fonts.serif) : null), [fonts, copy]);
   const hands = useHands();
   const monitorNotes = useMemo(() => {
     if (!hands) return null;
@@ -500,8 +501,11 @@ export function DeskScene({ f, copy, quality: q, onReady }: { f: Drive; copy: Co
       <group position={[rx, TOP, rz]} rotation-y={-0.22}>
         {fonts && <PhoneFarmRack fonts={fonts} run={farmRun} />}
       </group>
-      {/* Post-it FarmAgent menempel di halaman kanan binder yang terbuka, tepat di depan rak */}
-      {hands && <DeskNote note={copy.projects.farmagent} hands={hands} style={STYLE.farmagent} size={0.13} x={-0.525} z={0.045} rot={-0.26} lift={0.0145} />}
+      {/* Binder terbuka di kanan-depan rak; post-it FarmAgent menempel di halaman kanannya, di samping teks 3D */}
+      <group position={[-0.498, 0, -0.029]} rotation-y={-0.15}>
+        <Asset src={MODELS.binder} position={[0, TOP, 0]} hide={BINDER_HIDE} />
+        {hands && <DeskNote note={copy.projects.farmagent} hands={hands} style={STYLE.farmagent} size={0.13} x={0.098} z={-0.006} rot={0.06} lift={0.0145} />}
+      </group>
 
       {/* Monitor + Mac mini (Sonar, PromptedSite, ViralEngine, Security) */}
       {fonts && monitorNotes && (
@@ -553,7 +557,6 @@ export function DeskScene({ f, copy, quality: q, onReady }: { f: Drive; copy: Co
         <pointLight position={[0.88, TOP + 0.45, -0.16]} intensity={0.35} distance={1.4} decay={1.6} color="#ffe2b8" />
       )}
       <Asset src={MODELS.plant} position={[-0.4, TOP, -0.5]} scale={0.3} />
-      <Asset src={MODELS.binder} position={[-0.62, TOP, 0.02]} rotation-y={-0.32} hide={["binder_notebook_closed"]} />
       <Mug position={[0.98, TOP, 0.08]} scale={0.15} />
 
       {/* Pegboard IKEA SKÅDIS (model HD) di belakang monitor */}
@@ -584,7 +587,7 @@ export function DeskScene({ f, copy, quality: q, onReady }: { f: Drive; copy: Co
       )}
       {hands && (
         <group position={[0, 0, WALL_Z + 0.056]}>
-          <PostIt note={copy.experience} hands={hands} style={STYLE.experience} size={0.18} tape position={[-0.74, BY - 0.31, 0]} rotation={[0, 0, 0.03]} />
+          <PostIt note={copy.experience} hands={hands} style={STYLE.experience} size={0.18} tape position={[-0.93, BY - 0.3, 0]} rotation={[0, 0, 0.03]} />
           <PostIt note={copy.certificates} hands={hands} style={STYLE.certificates} size={0.18} tape position={[0.85, BY + 0.27, 0]} rotation={[0, 0, -0.04]} />
         </group>
       )}

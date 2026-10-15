@@ -27,10 +27,10 @@ const en = {
   /** Kertas hero & layar pemuatan: "Portfolio" + nama lengkap. */
   portfolio: "Portfolio",
   about: [
-    { title: "How I work", lines: ["I build products end to end,", "alone, in production.", "Then I make them", "run without me."], color: YELLOW },
-    { title: "4", lines: ["products live"], color: PINK },
-    { title: "~100", lines: ["customers", "worldwide"], color: GREEN },
-    { title: "6", lines: ["platforms", "automated"], color: BLUE },
+    { title: "End to end", lines: ["I build & ship products alone:", "API, backend, frontend,", "AI agents, payments, deploy."], color: YELLOW },
+    { title: "AI", lines: ["automation", "& AI agents"], color: PINK },
+    { title: "Data", lines: ["web scraping", "& analysis"], color: GREEN },
+    { title: "Security", lines: ["my second", "specialty"], color: BLUE },
   ] as Note[],
   projects: {
     farmagent: {
@@ -111,10 +111,10 @@ const id: typeof en = {
   loading: "Menyiapkan meja",
   portfolio: "Portofolio",
   about: [
-    { title: "Cara saya bekerja", lines: ["Saya membangun produk", "dari nol sampai production,", "sendiri. Lalu membuatnya", "berjalan tanpa saya."], color: YELLOW },
-    { title: "4", lines: ["produk live"], color: PINK },
-    { title: "~100", lines: ["pelanggan", "dari berbagai negara"], color: GREEN },
-    { title: "6", lines: ["platform", "diotomatisasi"], color: BLUE },
+    { title: "End to end", lines: ["Membangun & merilis produk", "sendiri: API, backend, frontend,", "AI agent, pembayaran, deploy."], color: YELLOW },
+    { title: "AI", lines: ["otomasi", "& agen AI"], color: PINK },
+    { title: "Data", lines: ["web scraping", "& analisis"], color: GREEN },
+    { title: "Security", lines: ["spesialisasi", "kedua"], color: BLUE },
   ],
   projects: {
     farmagent: {

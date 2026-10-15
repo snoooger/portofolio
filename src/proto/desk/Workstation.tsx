@@ -149,7 +149,7 @@ export function Workstation({
       {glow && <rectAreaLight ref={area} intensity={0} color="#8e8aa0" />}
       {/* Menggantung dari bezel bawah (tepi bawah bingkai y 0.121, permukaan depan z ≈ 0.066), diselotip
           di tepi atasnya; bidang post-it mengikuti kemiringan panel ±8°. */}
-      <NotePad notes={notes} index={noteIndex} size={0.12} position={[-0.2, 0.0595, 0.0754]} rotation={[-0.138, 0, 0.02]} />
+      <NotePad notes={notes} index={noteIndex} size={0.13} position={[0.2, 0.0545, 0.0761]} rotation={[-0.138, 0, -0.02]} />
 
       {/* Mac mini (model HD) di kanan monitor + kabel ke monitor */}
       {/* Diputar 180°: port di belakang menghadap dinding, logo & LED di depan */}

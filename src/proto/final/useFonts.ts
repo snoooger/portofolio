@@ -14,6 +14,7 @@ export function useFonts() {
       canvasFont("--font-inter-tight", "600 34px"),
       canvasFont("--font-jetbrains-mono", "500 30px"),
       canvasFont("--font-caveat", "700 90px"),
+      canvasFont("--font-instrument-serif", "italic 96px"), // kertas hero: "folio" miring
     ]).then(([serif, sans, mono, hand]) => set({ serif, sans, mono, hand }));
   }, []);
   return fonts;

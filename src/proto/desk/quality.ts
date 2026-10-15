@@ -21,9 +21,10 @@ export type Quality = {
 };
 
 export const QUALITY: Record<Tier, Quality> = {
-  high: { tier: "high", dpr: [1, 1.75], shadows: true, shadowMap: 2048, soft: true, practicals: true, post: "full", antialias: true },
-  mid: { tier: "mid", dpr: [1, 1.5], shadows: true, shadowMap: 1024, soft: false, practicals: true, post: "bloom", antialias: true },
-  low: { tier: "low", dpr: [0.85, 1], shadows: false, shadowMap: 512, soft: false, practicals: false, post: "none", antialias: false },
+  // dpr maksimum 2: layar HP (dpr 3) tetap tajam tanpa biaya render 9× lipat.
+  high: { tier: "high", dpr: [1, 2], shadows: true, shadowMap: 2048, soft: true, practicals: true, post: "full", antialias: true },
+  mid: { tier: "mid", dpr: [1, 2], shadows: true, shadowMap: 1024, soft: false, practicals: true, post: "none", antialias: true },
+  low: { tier: "low", dpr: [1, 1.5], shadows: false, shadowMap: 512, soft: false, practicals: false, post: "none", antialias: true },
 };
 
 /** GPU kelas bawah yang dikenali dari nama renderer WebGL. */

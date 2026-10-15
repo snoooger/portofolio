@@ -549,37 +549,64 @@ export function postIt(note: Note, hands: HandFamilies, style: NoteStyle, w = 76
   return tex(c);
 }
 
-/** Kertas hero di atas cutting mat: "Portofolio" tulisan tangan + nama lengkap + peran. */
-export function heroPaper(kicker: string, name: string, role: string, serif: string, script: string, mono: string) {
+/**
+ * Kertas hero di atas cutting mat: hanya kata "Portfolio" / "Portofolio", tipografi editorial.
+ * "Port(o)" tegak tinta hitam + "folio" miring terakota (Instrument Serif), dibingkai garis tipis ganda
+ * dan tanda potong di sudut seperti lembar cetak coba.
+ */
+export function heroPaper(word: string, serif: string) {
   const W = 1600, H = 1100;
   const { c, ctx } = canvas(W, H);
   ctx.fillStyle = P.paper;
   ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 6000; i++) {
+  for (let i = 0; i < 7000; i++) {
     ctx.fillStyle = `rgba(80,60,40,${Math.random() * 0.035})`;
     ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
   }
-  ctx.textAlign = "center";
-  // "Portofolio" tulisan tangan terakota + coretan garis bawah
-  ctx.fillStyle = P.terracotta;
-  ctx.font = `700 210px ${script}`;
-  ctx.fillText(kicker, W / 2, 400);
-  const kw = Math.min(ctx.measureText(kicker).width, 1100);
-  ctx.strokeStyle = P.terracotta;
-  ctx.lineWidth = 9;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(W / 2 - kw / 2, 455);
-  ctx.bezierCurveTo(W / 2 - kw / 6, 432, W / 2 + kw / 5, 480, W / 2 + kw / 2 + 20, 442);
-  ctx.stroke();
-  // Nama lengkap, serif besar (dipaskan ke lebar kertas)
-  ctx.fillStyle = P.ink;
-  let size = 168;
+  // Bingkai garis ganda + tanda potong
+  ctx.strokeStyle = "rgba(30,27,24,0.55)";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(110, 110, W - 220, H - 220);
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(128, 128, W - 256, H - 256);
+  ctx.strokeStyle = "rgba(30,27,24,0.4)";
+  for (const [x, y] of [[110, 110], [W - 110, 110], [110, H - 110], [W - 110, H - 110]]) {
+    const sx = x < W / 2 ? -1 : 1, sy = y < H / 2 ? -1 : 1;
+    ctx.beginPath();
+    ctx.moveTo(x + sx * 20, y);
+    ctx.lineTo(x + sx * 70, y);
+    ctx.moveTo(x, y + sy * 20);
+    ctx.lineTo(x, y + sy * 70);
+    ctx.stroke();
+  }
+  // Kata utama: bagian depan tegak, "folio" miring terakota, dipaskan ke lebar bingkai.
+  const cut = word.toLowerCase().lastIndexOf("folio");
+  const head = cut > 0 ? word.slice(0, cut) : word;
+  const tail = cut > 0 ? word.slice(cut) : "";
+  let size = 330;
+  const measure = () => {
+    ctx.font = `${size}px ${serif}`;
+    const a = ctx.measureText(head).width;
+    ctx.font = `italic ${size}px ${serif}`;
+    return a + ctx.measureText(tail).width;
+  };
+  while (measure() > W - 420 && size > 120) size -= 6;
+  const total = measure();
   ctx.font = `${size}px ${serif}`;
-  while (ctx.measureText(name).width > W - 200 && size > 80) ctx.font = `${(size -= 4)}px ${serif}`;
-  ctx.fillText(name, W / 2, 700);
-  ctx.fillStyle = P.inkSoft;
-  ctx.font = `500 34px ${mono}`;
-  ctx.fillText(role.toUpperCase(), W / 2, 880);
+  const headW = ctx.measureText(head).width;
+  const x0 = (W - total) / 2, base = H / 2 + size * 0.3;
+  ctx.textAlign = "left";
+  ctx.fillStyle = P.ink;
+  ctx.fillText(head, x0, base);
+  ctx.font = `italic ${size}px ${serif}`;
+  ctx.fillStyle = P.terracotta;
+  ctx.fillText(tail, x0 + headW, base);
+  // Garis tipis di bawah kata + titik aksen
+  ctx.fillStyle = P.ink;
+  ctx.fillRect(W / 2 - 90, base + 70, 180, 2);
+  ctx.fillStyle = P.terracotta;
+  ctx.beginPath();
+  ctx.arc(W / 2, base + 71, 7, 0, Math.PI * 2);
+  ctx.fill();
   return tex(c);
 }

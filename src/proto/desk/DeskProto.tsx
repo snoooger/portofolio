@@ -63,7 +63,7 @@ export function DeskProto() {
 
     // Satu gestur = satu section. Setelah tiba, input diabaikan sejenak (DWELL) supaya isi section
     // sempat terbaca sebelum bisa lanjut. Roda mouse, swipe sentuh, dan tombol keyboard.
-    const DWELL = 1600, TRAVEL = 1.4;
+    const DWELL = 650, TRAVEL = 1.0;
     const step = { busy: false, until: 0, acc: 0 };
     const go = (dir: number) => {
       const el = root.current;
@@ -79,7 +79,7 @@ export function DeskProto() {
         lock: true,
         onComplete: () => {
           step.busy = false;
-          step.until = performance.now() + (k === 0 ? 500 : DWELL);
+          step.until = performance.now() + (k === 0 ? 250 : DWELL);
           step.acc = 0;
         },
       });
@@ -123,7 +123,7 @@ export function DeskProto() {
   }, [f]);
 
   return (
-    <main ref={root} style={{ height: `${N * 140}vh` }}>
+    <main ref={root} style={{ height: `${N * 140}svh` }}>
       <div className="fixed inset-0" aria-hidden>
         {q && (
           <Stage

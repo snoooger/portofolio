@@ -1,11 +1,10 @@
 "use client";
 
-// Workstation: monitor 27" yang tersambung ke Mac mini, keyboard & mouse. Layar menampilkan proyek
+// Workstation: monitor 27" yang tersambung ke Mac mini, dan keyboard. Layar menampilkan proyek
 // yang sedang dibahas (Sonar, PromptedSite, ViralEngine, Security) dan berganti mengikuti scroll.
 // Di bezel kiri-bawah ada tumpukan post-it: lembar teratas berganti per proyek, lembar lama terkelupas jatuh.
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useFrame, type ThreeElements } from "@react-three/fiber";
-import { RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 import { Cable } from "../hd/Devices";
@@ -156,11 +155,8 @@ export function Workstation({
       <Model src={HD.macmini} fit={MAC_FIT} position={[0.6, 0, -0.08]} rotation-y={Math.PI - 0.1} />
       <Cable from={new THREE.Vector3(0.52, 0.02, -0.12)} to={new THREE.Vector3(0.03, 0.3, -0.08)} />
 
-      {/* Keyboard mechanical (model HD) & mouse */}
+      {/* Keyboard mechanical (model HD) */}
       <Model src={HD.keyboard} fit={KEYB_FIT} position={[-0.02, 0, 0.22]} />
-      <RoundedBox args={[0.062, 0.022, 0.115]} radius={0.01} position={[0.27, 0.011, 0.22]} castShadow>
-        <meshPhysicalMaterial color="#f2f0ec" roughness={0.3} clearcoat={0.6} />
-      </RoundedBox>
     </group>
   );
 }

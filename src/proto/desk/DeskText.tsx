@@ -1,0 +1,185 @@
+"use client";
+
+// Teks 3D penjelasan tiap perhentian, melayang di udara di depan kamera (bukan kartu, bukan tempelan).
+// Posisi dihitung dari pose kamera akhir di perhentian itu (frame.ts), jadi saat kamera berhenti teks
+// selalu jatuh di area yang dirancang: sisi kosong bingkai di desktop, bagian bawah di HP. Satuan lokal
+// blok = setengah tinggi layar pada jarak teks, sehingga ukuran huruf konsisten di layar mana pun.
+// Masuk: zoom in dari belakang; keluar: zoom out melewati kamera (mengikuti scroll).
+import { useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
+import * as THREE from "three";
+import type { Drive } from "../objects/types";
+import type { Copy } from "./copy";
+import { summaryFor, type Card } from "./content";
+import { DESK_STOPS, type DeskStop } from "./stops";
+import { OBJECT_FRAC, applyFraming, makeAxes } from "./frame";
+
+const FONT = {
+  serif: "/fonts-proto/instrument-serif-latin-400-normal.woff",
+  bold: "/fonts-proto/inter-tight-latin-700-normal.woff",
+  sans: "/fonts-proto/inter-tight-latin-600-normal.woff",
+  sansSemi: "/fonts-proto/inter-tight-latin-700-normal.woff",
+  mono: "/fonts-proto/jetbrains-mono-latin-500-normal.woff",
+};
+/**
+ * Huruf tebal tanpa kontur/glow, warna dari palet situs. Dua nada sesuai latar di sisi teks:
+ * - dark : latar terang (dinding plester, pegboard, kayu) — judul terakota, isi cokelat espresso,
+ *          label mustard tua.
+ * - light: latar gelap (lantai parket) — judul krem, isi krem, label kuning.
+ */
+type Theme = { title: string; body: string; soft: string; accent: string };
+const THEME: Record<"dark" | "light", Theme> = {
+  dark: { title: "#a63f1a", body: "#2a1d14", soft: "#3a2a1e", accent: "#6a470c" },
+  light: { title: "#fff3da", body: "#f8ecd4", soft: "#f1e2c4", accent: "#f5c84c" },
+};
+
+type TextMesh = THREE.Mesh & { fillOpacity: number; outlineOpacity: number; textRenderInfo?: { blockBounds: [number, number, number, number] } };
+type Row =
+  | { kind: "kicker" | "title" | "body"; text: string }
+  | { kind: "facts"; facts: { v: string; k: string }[] }
+  | { kind: "item"; a: string; b: string };
+
+const GAP: Record<Row["kind"], number> = { kicker: 0.035, title: 0.05, body: 0.06, facts: 0.04, item: 0.035 };
+const sstep = THREE.MathUtils.smoothstep;
+
+function rowsOf(card: Card): Row[] {
+  const rows: Row[] = [{ kind: "kicker", text: card.kicker.toUpperCase() }, { kind: "title", text: card.title }];
+  if (card.lines.length) rows.push({ kind: "body", text: card.lines.join(" ") });
+  if (card.facts?.length) rows.push({ kind: "facts", facts: card.facts });
+  card.list?.forEach((x) => rows.push({ kind: "item", a: x.a, b: x.c ? `${x.b} · ${x.c}` : x.b }));
+  return rows;
+}
+
+/** Satu baris/blok huruf (tanpa kontur). */
+function T({ children, font, size, color, width, ...props }: { children: string; font: string; size: number; color: string; width?: number; th: Theme } & Record<string, unknown>) {
+  return (
+    <Text
+      font={font}
+      fontSize={size}
+      color={color}
+      maxWidth={width}
+      anchorX="left"
+      anchorY="top"
+      renderOrder={20}
+      {...props}
+    >
+      {children}
+      <meshBasicMaterial attach="material" transparent depthTest={false} depthWrite={false} toneMapped={false} />
+    </Text>
+  );
+}
+
+function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: DeskStop; card: Card; aspect: number }) {
+  const portrait = aspect < 1;
+  // Jangkar & orientasi dihitung dari pose akhir kamera di perhentian (sama persis dengan DeskScene).
+  const frame = useMemo(() => {
+    const p = new THREE.Vector3(...stop.pos);
+    const l = new THREE.Vector3(...stop.look);
+    const ax = makeAxes();
+    const fov = applyFraming(p, l, stop.span, stop.text!.side, 1, aspect, ax);
+    const D = Math.min(0.42, p.distanceTo(l) * 0.55);
+    const halfH = D * Math.tan(THREE.MathUtils.degToRad(fov / 2));
+    const side = stop.text!.side;
+    // Kotak teks dalam satuan setengah-tinggi (x: −aspect … +aspect, y: −1 … +1).
+    const box = portrait
+      ? { x: -0.88 * aspect, y: -0.4, w: 1.76 * aspect, s: 0.82 }
+      : side > 0
+        ? { x: (-1 + 2 * OBJECT_FRAC + 0.08) * aspect, y: stop.text!.top ?? 0.5, w: (2 - 2 * OBJECT_FRAC - 0.16) * aspect, s: 1 }
+        : { x: -0.92 * aspect, y: stop.text!.top ?? 0.5, w: (2 - 2 * OBJECT_FRAC - 0.16) * aspect, s: 1 };
+    const anchor = p.clone().addScaledVector(ax.dir, D).addScaledVector(ax.right, box.x * halfH).addScaledVector(ax.up, box.y * halfH);
+    const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(ax.right, ax.up, ax.dir.clone().negate()));
+    return { anchor, q, halfH, w: box.w / box.s, s: box.s };
+  }, [stop, aspect, portrait]);
+
+  const rows = useMemo(() => rowsOf(card), [card]);
+  const th = THEME[(portrait ? stop.text!.portraitTone : undefined) ?? stop.text!.tone ?? "dark"];
+  const refs = useRef<(THREE.Group | null)[]>([]);
+
+  useFrame(() => {
+    let y = 0;
+    const d = f.current - k;
+    refs.current.forEach((g, i) => {
+      if (!g) return;
+      const a = sstep(d + i * 0.025, -0.55, -0.22); // datang: zoom in dari belakang
+      const b = sstep(d - i * 0.025, 0.22, 0.5); // pergi: zoom out ke arah kamera
+      const o = a * (1 - b);
+      g.visible = o > 0.01;
+      let h = 0;
+      g.traverse((obj) => {
+        const t = obj as TextMesh;
+        if (!t.textRenderInfo) return;
+        t.fillOpacity = o;
+        h = Math.max(h, -t.textRenderInfo.blockBounds[1] - t.position.y);
+      });
+      if (g.userData.h) h = Math.max(h, g.userData.h as number);
+      const s = 0.82 + 0.18 * a + 0.5 * b;
+      g.scale.setScalar(s);
+      g.position.set(0, y, -0.9 * (1 - a) + 0.7 * b);
+      y -= (h + GAP[rows[i].kind]) * s;
+    });
+  });
+
+  const W = frame.w;
+  return (
+    <group position={frame.anchor} quaternion={frame.q} scale={frame.halfH * frame.s}>
+      {rows.map((r, i) => (
+        <group key={i} ref={(g) => void (refs.current[i] = g)} visible={false} userData={r.kind === "facts" ? { h: 0.15 } : {}}>
+          {r.kind === "kicker" && (
+            <T font={FONT.mono} size={0.036} color={th.accent} th={th} letterSpacing={0.16} width={W}>
+              {r.text}
+            </T>
+          )}
+          {r.kind === "title" && (
+            <T font={FONT.bold} size={0.115} color={th.title} th={th} lineHeight={1.0} letterSpacing={-0.025} width={W}>
+              {r.text}
+            </T>
+          )}
+          {r.kind === "body" && (
+            <T font={FONT.sans} size={0.046} color={th.body} th={th} lineHeight={1.4} width={Math.min(W, 1.05)}>
+              {r.text}
+            </T>
+          )}
+          {r.kind === "facts" &&
+            r.facts.map((x, j) => {
+              const col = Math.min(W / r.facts.length, 0.36);
+              return (
+                <group key={x.k} position={[j * col, 0, 0]}>
+                  <T font={FONT.serif} size={0.088} color={th.title} th={th} width={col}>
+                    {x.v}
+                  </T>
+                  <T font={FONT.mono} size={0.029} color={th.soft} th={th} letterSpacing={0.06} lineHeight={1.25} width={col - 0.03} position={[0, -0.1, 0]}>
+                    {x.k.toUpperCase()}
+                  </T>
+                </group>
+              );
+            })}
+          {r.kind === "item" && (
+            <>
+              <T font={FONT.sansSemi} size={0.042} color={th.title} th={th} width={W}>
+                {r.a}
+              </T>
+              <T font={FONT.sans} size={0.036} color={th.soft} th={th} lineHeight={1.35} width={Math.min(W, 1.05)} position={[0, -0.056, 0]}>
+                {r.b}
+              </T>
+            </>
+          )}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+export function DeskText({ f, copy }: { f: Drive; copy: Copy }) {
+  const size = useThree((s) => s.size);
+  const aspect = size.width / Math.max(1, size.height);
+  return (
+    <>
+      {DESK_STOPS.map((s, k) => {
+        if (!s.text) return null;
+        const card = summaryFor(s.id, copy);
+        return card ? <StopText key={s.id} f={f} k={k} stop={s} card={card} aspect={aspect} /> : null;
+      })}
+    </>
+  );
+}

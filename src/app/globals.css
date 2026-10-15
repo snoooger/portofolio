@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/* ── Prototipe: terang & editorial, aksen terakota ───────────────── */
+:root {
+  --cream: #f2ebe1;
+  --paper: #fbf7f1;
+  --sand: #e3d6c3;
+  --ink: #1e1b18;
+  --ink-soft: #5c544b;
+  --terracotta: #c2552f;
+  --terracotta-dark: #8c3a1f;
+}
+
+@theme inline {
+  --color-cream: var(--cream);
+  --color-paper: var(--paper);
+  --color-sand: var(--sand);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-dark: var(--terracotta-dark);
+
+  --font-display: var(--font-instrument-serif), "Times New Roman", serif;
+  --font-sans: var(--font-inter-tight), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-hand: var(--font-caveat), cursive;
+}
+
+html {
+  background: var(--cream);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.55;
+  background: var(--cream);
+}
+
+::selection {
+  background: var(--terracotta);
+  color: var(--paper);
+}
+
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+/* Butir kertas halus */
+.paper-grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.06;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Tilt-shift: pita blur di atas & bawah layar (konsep Miniature City) */
+.tilt-shift {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 26vh;
+  pointer-events: none;
+  z-index: 5;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.tilt-shift.top {
+  top: 0;
+  mask-image: linear-gradient(to bottom, black 10%, transparent);
+}
+.tilt-shift.bottom {
+  bottom: 0;
+  mask-image: linear-gradient(to top, black 10%, transparent);
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}

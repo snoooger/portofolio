@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 import { Cable } from "../hd/Devices";
 import { promptedGallery, sonarLanding, thesisScreen, viralDashboard } from "./screens2";
+import { MacDesktop } from "./macos";
 import { HD, Model, type Fit } from "./Model";
 import type { Drive } from "../objects/types";
 import type { Fonts } from "../final/useFonts";
@@ -88,12 +89,22 @@ export function Workstation({
   const panel = useRef<THREE.Mesh | null>(null);
   const placed = useRef(false);
   const glowColor = useMemo(() => SCREEN_GLOW.map((c) => new THREE.Color(c)), []);
-  const screens = useMemo(() => {
-    const gallery = promptedGallery(fonts);
-    gallery.repeat.set(1, 900 / 2700); // tampilkan setinggi satu layar, lalu gulir
-    return [sonarLanding(fonts), gallery, viralDashboard(fonts), thesisScreen(fonts)];
+  // Tiap proyek tampil di dalam jendela aplikasi pada desktop bergaya macOS (menu bar & dock kaca).
+  const desktops = useMemo(() => {
+    const src = (t: THREE.Texture) => {
+      const c = t.image as HTMLCanvasElement;
+      t.dispose();
+      return c;
+    };
+    return [
+      new MacDesktop(src(sonarLanding(fonts)), fonts, { app: "Browser", title: "Sonar — AI search office", dark: true, url: true, active: 1 }),
+      new MacDesktop(src(promptedGallery(fonts)), fonts, { app: "Browser", title: "promptedsite.com", dark: true, url: true, active: 1 }),
+      new MacDesktop(src(viralDashboard(fonts)), fonts, { app: "Browser", title: "ViralEngine — Trend radar", dark: true, url: true, active: 1 }),
+      new MacDesktop(src(thesisScreen(fonts)), fonts, { app: "Notebook", title: "thesis.ipynb", active: 5 }),
+    ];
   }, [fonts]);
-  useEffect(() => () => screens.forEach((t) => t.dispose()), [screens]);
+  useEffect(() => () => desktops.forEach((d) => d.dispose()), [desktops]);
+  const screens = useMemo(() => desktops.map((d) => d.texture), [desktops]);
 
   // Material layar dipasang ke panel layar model Studio Display.
   const mat = useRef<THREE.MeshBasicMaterial>(new THREE.MeshBasicMaterial({ color: "#0a0a0a", toneMapped: false }));
@@ -121,7 +132,7 @@ export function Workstation({
     // Layar mati (gelap) di luar bagian proyek; menyala dengan kedip singkat saat berganti.
     const level = on ? 0.25 + 0.75 * wake.current : 0.06;
     m.color.setScalar(THREE.MathUtils.damp(m.color.r, level, 8, dt));
-    if (i === 1 && m.map) m.map.offset.y = 1 - m.map.repeat.y - scroll.current * (1 - m.map.repeat.y);
+    if (i === 1) desktops[1].draw(scroll.current); // galeri PromptedSite digulir di dalam jendela
 
     // Cahaya layar: area light seukuran panel, sedikit di depannya, menghadap pengguna.
     const L = area.current;

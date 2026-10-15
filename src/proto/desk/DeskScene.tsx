@@ -16,7 +16,7 @@ import { useFonts } from "../final/useFonts";
 import { PLATE, PhoneFarmRack, RACK } from "./PhoneFarmRack";
 import { HD, Model, type Fit } from "./Model";
 import { Workstation } from "./Workstation";
-import { INKS, heroPaper, jobCard, postIt, type HandFamilies, type NoteStyle } from "./paper";
+import { INKS, heroPaper, jobCard, postIt, statsNote, type HandFamilies, type NoteStyle } from "./paper";
 import { useHands } from "./useHands";
 import { BOARD_Y, DESK, DESK_STOPS, SPOT, TOP, WALL_Z, deskIndex } from "./stops";
 import { IPhone } from "./IPhone";
@@ -109,6 +109,24 @@ function PostIt({
         <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
       </mesh>
       {tape && <Tape w={size * 0.42} rot={-0.06} position={[0, size / 2 - size * 0.02, 0.0012]} />}
+    </group>
+  );
+}
+
+/** Post-it statistik FarmAgent (coretan grafik), diselotip seperti post-it lain. */
+function StatsPostIt({ copy, hands, size = 0.19, ...props }: { copy: Copy; hands: HandFamilies; size?: number; position: [number, number, number]; rotation?: [number, number, number] }) {
+  const t = useMemo(() => statsNote(copy.farmStats, hands), [copy, hands]);
+  useEffect(() => () => t.dispose(), [t]);
+  return (
+    <group {...props}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[size, size, 0.0008]} />
+        {[0, 1, 2, 3, 5].map((i) => (
+          <meshStandardMaterial key={i} attach={`material-${i}`} color="#C9DDB0" />
+        ))}
+        <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
+      </mesh>
+      <Tape w={size * 0.42} rot={0.05} position={[0, size / 2 - size * 0.02, 0.0012]} />
     </group>
   );
 }
@@ -504,6 +522,8 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
             rotation={[0, 0, 0.03]}
           />
         )}
+        {/* Di kanannya: hasil (100M views, 100K followers, 12 niche × 6 platform) dalam coretan */}
+        {hands && <StatsPostIt copy={copy} hands={hands} position={[0.105, PLATE.y + 0.002, RACK.D / 2 + 0.0045]} rotation={[0, 0, -0.035]} />}
       </group>
       {/* Binder terbuka di kiri-depan rak */}
       <group position={[-1.02, 0, 0.059]} rotation-y={0.35}>

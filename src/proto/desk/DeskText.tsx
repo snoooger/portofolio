@@ -7,7 +7,7 @@
 // Masuk: zoom in dari belakang; keluar: zoom out melewati kamera (mengikuti scroll).
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import { Html, Text } from "@react-three/drei";
 import * as THREE from "three";
 import type { Drive } from "../objects/types";
 import type { Copy } from "./copy";
@@ -42,7 +42,7 @@ type Row =
   | { kind: "cta"; label: string; href: string };
 
 const GAP: Record<Row["kind"], number> = { kicker: 0.035, title: 0.05, body: 0.06, facts: 0.04, item: 0.035, cta: 0.04 };
-const CTA_H = 0.078, CTA_FS = 0.032;
+const CTA_H = 0.09;
 const sstep = THREE.MathUtils.smoothstep;
 
 /** Gradasi vertikal krem: pekat di bawah, transparan di atas (latar teks di layar potret). */
@@ -91,42 +91,34 @@ function T({ children, font, size, color, width, ...props }: { children: string;
   );
 }
 
-/** Tombol kapsul kuning di bawah teks 3D: membuka situs proyek (hanya bisa diklik saat terlihat penuh). */
-function Cta({ label, href }: { label: string; href: string }) {
-  const mat = useRef<THREE.MeshBasicMaterial>(null);
-  const w = label.length * CTA_FS * 0.56 + 0.11;
-  const geo = useMemo(() => {
-    const r = CTA_H / 2;
-    const sh = new THREE.Shape();
-    sh.moveTo(r, 0);
-    sh.lineTo(w - r, 0);
-    sh.absarc(w - r, -r, r, Math.PI / 2, -Math.PI / 2, true);
-    sh.lineTo(r, -CTA_H);
-    sh.absarc(r, -r, r, -Math.PI / 2, Math.PI / 2, true);
-    return new THREE.ShapeGeometry(sh, 16);
-  }, [w]);
-  const live = () => (mat.current?.opacity ?? 0) > 0.6;
+/**
+ * Tombol CTA di bawah teks 3D: link HTML sungguhan (drei <Html>) yang menempel pada titik 3D baris ini,
+ * jadi klik/tap selalu bekerja seperti link biasa. Opasitas & klik mengikuti animasi teksnya.
+ */
+function Cta({ label, href, fade }: { label: string; href: string; fade: { current: number } }) {
+  const el = useRef<HTMLAnchorElement>(null);
+  useFrame(() => {
+    const a = el.current;
+    if (!a) return;
+    const o = fade.current;
+    a.style.opacity = String(o);
+    a.style.pointerEvents = o > 0.6 ? "auto" : "none";
+    a.style.visibility = o > 0.01 ? "visible" : "hidden";
+  });
   return (
-    <group>
-      <mesh
-        geometry={geo}
-        renderOrder={19}
-        userData={{ pill: true }}
-        onClick={(e) => {
-          if (!live()) return;
-          e.stopPropagation();
-          window.open(href, "_blank", "noopener");
-        }}
-        onPointerOver={() => live() && (document.body.style.cursor = "pointer")}
-        onPointerOut={() => (document.body.style.cursor = "")}
+    <Html position={[0, -0.005, 0]} zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
+      <a
+        ref={el}
+        href={href}
+        target="_blank"
+        rel="noopener"
+        className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border-2 border-[#1d3a2b] bg-[#f5c84c] px-4 py-2 font-sans text-[13px] font-semibold text-[#1d3a2b] shadow-[0_6px_18px_-6px_rgba(16,36,26,0.55)] transition-colors hover:bg-[#1d3a2b] hover:text-[#f5c84c] md:text-[14px]"
+        style={{ opacity: 0, visibility: "hidden" }}
       >
-        <meshBasicMaterial ref={mat} color="#f5c84c" transparent opacity={0} depthTest={false} depthWrite={false} toneMapped={false} />
-      </mesh>
-      <Text font={FONT.sansSemi} fontSize={CTA_FS} color="#1d3a2b" anchorX="left" anchorY="middle" position={[0.055, -CTA_H / 2, 0.001]} renderOrder={20}>
         {label}
-        <meshBasicMaterial attach="material" transparent depthTest={false} depthWrite={false} toneMapped={false} />
-      </Text>
-    </group>
+        <span aria-hidden>↗</span>
+      </a>
+    </Html>
   );
 }
 
@@ -162,6 +154,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
   const th = THEME[portrait ? "dark" : (stop.text!.tone ?? "dark")];
   const scrimMat = useRef<THREE.MeshBasicMaterial>(null);
   const refs = useRef<(THREE.Group | null)[]>([]);
+  const ctaFade = useRef(0);
 
   useFrame(() => {
     let y = 0;
@@ -179,17 +172,13 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
       g.visible = o > 0.01;
       let h = 0;
       g.traverse((obj) => {
-        if (obj.userData.pill) {
-          const m = (obj as THREE.Mesh).material as THREE.MeshBasicMaterial;
-          m.opacity = o;
-          return;
-        }
         const t = obj as TextMesh;
         if (!t.textRenderInfo) return;
         t.fillOpacity = o;
         h = Math.max(h, -t.textRenderInfo.blockBounds[1] - t.position.y);
       });
       if (g.userData.h) h = Math.max(h, g.userData.h as number);
+      if (rows[i].kind === "cta") ctaFade.current = o;
       const s = 0.82 + 0.18 * a + 0.5 * b;
       g.scale.setScalar(s);
       g.position.set(0, y, -0.9 * (1 - a) + 0.7 * b);
@@ -237,7 +226,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
                 </group>
               );
             })}
-          {r.kind === "cta" && <Cta label={r.label} href={r.href} />}
+          {r.kind === "cta" && <Cta label={r.label} href={r.href} fade={ctaFade} />}
           {r.kind === "item" && (
             <>
               <T font={FONT.sansSemi} size={0.042} color={th.title} th={th} width={W}>

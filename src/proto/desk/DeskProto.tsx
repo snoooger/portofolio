@@ -12,10 +12,11 @@ import { useStops } from "../useScrollProgress";
 import { scrollToStop } from "../ProtoScroll";
 import { DeskScene } from "./DeskScene";
 import { DESK_STOPS, deskIndex } from "./stops";
-import { COPY, NAME, type Lang } from "./copy";
+import { COPY, type Lang } from "./copy";
 import { DeskHeader } from "./Header";
 import { SeoContent } from "./SeoContent";
 import { DeskFooter } from "./Footer";
+import { Logo } from "./Logo";
 import { QUALITY, detectTier, lowerTier, type Tier } from "./quality";
 
 const N = DESK_STOPS.length;
@@ -195,7 +196,7 @@ export function DeskProto() {
         />
       </div>
 
-      <Loader kicker={copy.portfolio} title={NAME} label={copy.loading} ready={ready} />
+      <Loader label={copy.loading} ready={ready} />
 
       <SeoContent copy={copy} />
       <DeskHeader f={f} count={N} copy={copy} lang={lang} setLang={setLang} goTo={goTo} />
@@ -209,28 +210,40 @@ export function DeskProto() {
   );
 }
 
-/** Layar pemuatan selama model, tekstur & HDRI diunduh. */
-function Loader({ kicker, title, label, ready }: { kicker: string; title: string; label: string; ready: boolean }) {
+/** Layar pemuatan: logo terisi "cairan" dari bawah mengikuti persentase, angka persen di bawahnya. */
+function Loader({ label, ready }: { label: string; ready: boolean }) {
   const { active, progress } = useProgress();
   const [gone, setGone] = useState(false);
+  const [shown, setShown] = useState(0);
   // Hilang hanya setelah adegan benar-benar ter-render (ready) dan tidak ada unduhan aktif.
   const idle = ready && !active;
+  // Unduhan = 0–90%, menyiapkan adegan (font, tekstur, shader) = 90–100%. Angka naik halus, tidak loncat.
+  const target = idle ? 100 : Math.min(90, progress * 0.9);
   useEffect(() => {
-    if (!idle) return;
-    const t = window.setTimeout(() => setGone(true), 900);
+    let raf = 0;
+    const tick = () => {
+      setShown((v) => (Math.abs(target - v) < 0.4 ? target : v + (target - v) * 0.08));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  useEffect(() => {
+    if (!idle || shown < 99.5) return;
+    const t = window.setTimeout(() => setGone(true), 700);
     return () => window.clearTimeout(t);
-  }, [idle]);
+  }, [idle, shown]);
   if (gone) return null;
+  const done = idle && shown >= 99.5;
   return (
-    <div className={`fixed inset-0 z-50 grid place-items-center bg-cream transition-opacity duration-500 ${idle ? "opacity-0" : "opacity-100"}`}>
-      <div className="w-[min(420px,80vw)] text-center">
-        <p className="font-hand text-3xl leading-none text-terracotta">{kicker}</p>
-        <p className="mt-1 font-display text-4xl leading-tight">{title}</p>
+    <div className={`fixed inset-0 z-50 grid place-items-center bg-cream transition-opacity duration-500 ${done ? "opacity-0" : "opacity-100"}`}>
+      <div className="flex flex-col items-center text-center">
+        <Logo size={112} fill={shown / 100} className="drop-shadow-[0_18px_30px_rgba(30,27,24,0.18)]" />
+        <p className="mt-6 font-display text-5xl leading-none tabular-nums">
+          {Math.round(shown)}
+          <span className="text-terracotta">%</span>
+        </p>
         <p className="mono-label mt-3 text-ink-soft">{label}</p>
-        <div className="mt-5 h-px w-full bg-ink/15">
-          <div className="h-px bg-terracotta transition-[width] duration-300" style={{ width: `${Math.round(progress)}%` }} />
-        </div>
-        <p className="mono-label mt-2 text-ink-soft">{Math.round(progress)}%</p>
       </div>
     </div>
   );

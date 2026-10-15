@@ -134,30 +134,52 @@ const circlePts = (cx: number, cy: number, rx: number, ry = rx, n = 22): [number
 function companyDoodle(ctx: CanvasRenderingContext2D, org: string, x: number, y: number) {
   const o = org.toLowerCase();
   if (o.includes("web3")) {
-    // Kubus berantai (blockchain) — pulpen biru
-    const cube = (cx: number, cy: number, s: number, seed: number) => {
-      scribble(ctx, [[cx, cy - s], [cx + s, cy - s / 2], [cx + s, cy + s / 2], [cx, cy + s], [cx - s, cy + s / 2], [cx - s, cy - s / 2]], "#2f5fb3", 5, true, seed);
-      scribble(ctx, [[cx - s, cy - s / 2], [cx, cy], [cx + s, cy - s / 2]], "#2f5fb3", 4, false, seed + 1);
-      scribble(ctx, [[cx, cy], [cx, cy + s]], "#2f5fb3", 4, false, seed + 2);
-    };
-    cube(x + 34, y + 40, 30, 1);
-    cube(x + 110, y + 20, 22, 4);
-    scribble(ctx, [[x + 62, y + 34], [x + 90, y + 26]], "#2f5fb3", 4, false, 7);
+    // Logo Kerja Web3: lencana hijau + kubus kecil (titik kubus di logonya) — krayon
+    scribble(ctx, [[x + 8, y + 4], [x + 112, y + 4], [x + 112, y + 104], [x + 8, y + 104]], "#18a34a", 6, true, 1);
+    hatch(ctx, x + 12, y + 8, 96, 92, "#22c55e", 1);
+    const cx = x + 60, cy = y + 54, k = 26;
+    scribble(ctx, [[cx, cy - k], [cx + k, cy - k / 2], [cx + k, cy + k / 2], [cx, cy + k], [cx - k, cy + k / 2], [cx - k, cy - k / 2]], "#fbfaf6", 6, true, 2);
+    scribble(ctx, [[cx - k, cy - k / 2], [cx, cy], [cx + k, cy - k / 2]], "#fbfaf6", 5, false, 3);
+    scribble(ctx, [[cx, cy], [cx, cy + k]], "#fbfaf6", 5, false, 4);
   } else if (o.includes("timedoor")) {
-    // Pintu dengan jam di tengahnya — krayon oranye
-    scribble(ctx, [[x + 20, y + 100], [x + 20, y], [x + 92, y], [x + 92, y + 100]], "#e07a2b", 8, false, 2);
-    hatch(ctx, x + 26, y + 6, 60, 92, "#f3a24a", 2);
-    scribble(ctx, circlePts(x + 56, y + 46, 24), "#7a3b12", 5, false, 3);
-    scribble(ctx, [[x + 56, y + 46], [x + 56, y + 30]], "#7a3b12", 5, false, 4);
-    scribble(ctx, [[x + 56, y + 46], [x + 68, y + 52]], "#7a3b12", 5, false, 5);
-    scribble(ctx, circlePts(x + 82, y + 64, 3, 3, 8), "#7a3b12", 4, false, 6);
+    // Logo Timedoor Academy: lencana hijau, bingkai pintu putih, titik & garis orbit — krayon
+    scribble(ctx, [[x + 8, y + 4], [x + 112, y + 4], [x + 112, y + 104], [x + 8, y + 104]], "#2fa012", 6, true, 2);
+    hatch(ctx, x + 12, y + 8, 96, 92, "#4cc21f", 2);
+    scribble(ctx, [[x + 34, y + 18], [x + 84, y + 18], [x + 84, y + 92], [x + 34, y + 92]], "#fbfaf6", 7, false, 3);
+    scribble(ctx, [[x + 34, y + 18], [x + 34, y + 42]], "#fbfaf6", 6, false, 4);
+    scribble(ctx, circlePts(x + 52, y + 50, 4, 4, 8), "#fbfaf6", 6, false, 5);
+    scribble(ctx, Array.from({ length: 12 }, (_, i) => {
+      const a = Math.PI * (0.95 + (i / 11) * 1.1);
+      return [x + 60 + Math.cos(a) * 46, y + 62 + Math.sin(a) * 12 - (i / 11) * 18] as [number, number];
+    }), "#fbfaf6", 5, false, 6);
   } else if (o.includes("pupr")) {
-    // Jembatan lengkung di atas air — krayon kuning & biru
-    scribble(ctx, Array.from({ length: 13 }, (_, i) => [x + i * 11, y + 62 - Math.sin((i / 12) * Math.PI) * 46] as [number, number]), "#d9a21b", 8, false, 3);
-    scribble(ctx, [[x - 4, y + 64], [x + 136, y + 64]], "#7a5a12", 6, false, 4);
-    for (let i = 1; i < 6; i++) scribble(ctx, [[x + i * 22, y + 62 - Math.sin(((i * 2) / 12) * Math.PI) * 46], [x + i * 22, y + 64]], "#d9a21b", 4, false, 10 + i);
-    for (let k = 0; k < 2; k++)
-      scribble(ctx, Array.from({ length: 9 }, (_, i) => [x + i * 17, y + 82 + k * 14 + (i % 2 ? 5 : -5)] as [number, number]), "#2f6fb3", 5, false, 20 + k);
+    // Logo Kementerian PUPR: kotak kuning, bentuk navy dengan tiga lengkung kuning — krayon
+    const s4 = 104 / 400; // koordinat logo asli 400×400 → 104 px
+    const X = (v: number) => x + 8 + v * s4, Y = (v: number) => y + v * s4;
+    scribble(ctx, [[X(0), Y(0)], [X(400), Y(0)], [X(400), Y(400)], [X(0), Y(400)]], "#e8b21a", 6, true, 3);
+    hatch(ctx, X(4), Y(4), 396 * s4, 392 * s4, "#f7c52a", 3);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(X(85), Y(28));
+    ctx.lineTo(X(215), Y(28));
+    ctx.lineTo(X(215), Y(262));
+    ctx.lineTo(X(375), Y(262));
+    ctx.lineTo(X(375), Y(370));
+    ctx.lineTo(X(25), Y(370));
+    ctx.lineTo(X(25), Y(255));
+    ctx.lineTo(X(85), Y(255));
+    ctx.closePath();
+    ctx.clip();
+    for (let i = 0; i < 3; i++) hatch(ctx, X(20), Y(24 + i * 4), 360 * s4, 350 * s4, "#2f4580", 10 + i);
+    // lengkung kuning yang "menggigit" bentuk navy
+    for (const [cx, cy, r] of [[85, 150, 68], [130, 372, 86], [295, 262, 80]]) {
+      ctx.beginPath();
+      ctx.arc(X(cx), Y(cy), r * s4, 0, Math.PI * 2);
+      ctx.fillStyle = "#f7c52a";
+      ctx.fill();
+    }
+    ctx.restore();
+    scribble(ctx, [[X(85), Y(28)], [X(215), Y(28)], [X(215), Y(262)]], "#2f4580", 4, false, 20);
   } else if (o.includes("pln")) {
     // Kotak kuning, petir merah, gelombang biru (mirip logo PLN) — krayon
     scribble(ctx, [[x + 10, y], [x + 110, y], [x + 110, y + 104], [x + 10, y + 104]], "#e0b21a", 6, true, 5);
@@ -682,4 +704,79 @@ export function heroPaper(word: string, serif: string) {
   ctx.arc(W / 2, base + 71, 7, 0, Math.PI * 2);
   ctx.fill();
   return tex(c);
+}
+
+/**
+ * Post-it statistik FarmAgent, digambar seperti coretan: grafik batang naik + panah (views),
+ * kepala-kepala kecil (followers), dan catatan 12 niche × 6 platform. Angka dari pemilik portofolio.
+ */
+export function statsNote(t: { title: string; views: string; viewsLabel: string; followers: string; followersLabel: string; scope: string }, hands: HandFamilies, w = 768, h = 768) {
+  const { c, ctx } = canvas(w, h);
+  ctx.fillStyle = "#C9DDB0";
+  ctx.fillRect(0, 0, w, h);
+  const sh = ctx.createLinearGradient(0, 0, 0, 120);
+  sh.addColorStop(0, "rgba(0,0,0,0.07)");
+  sh.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = sh;
+  ctx.fillRect(0, 0, w, 120);
+  // kertas bertitik
+  ctx.fillStyle = "rgba(29,35,51,0.12)";
+  for (let y = 40; y < h; y += 44) for (let x = 40; x < w; x += 44) ctx.fillRect(x, y, 4, 4);
+  const ink = "#1d2333";
+  const font = (px: number) => `400 ${px}px ${hands.marker}`;
+
+  ctx.fillStyle = ink;
+  ctx.font = font(64);
+  ctx.fillText(t.title, 54, 104);
+  scribble(ctx, [[54, 126], [140, 120], [260, 128], [360, 121]], "#a4271c", 7, false, 1);
+
+  // Grafik batang naik + panah (views)
+  const bx = 60, by = 410;
+  [70, 120, 185, 265].forEach((bh, i) => {
+    const x = bx + i * 58;
+    scribble(ctx, [[x, by], [x, by - bh], [x + 40, by - bh], [x + 40, by]], ink, 6, false, 10 + i);
+    hatch(ctx, x + 4, by - bh + 6, 32, bh - 8, "#21409a", 10 + i);
+  });
+  scribble(ctx, [[bx - 10, by + 8], [bx + 250, by + 8]], ink, 6, false, 20);
+  scribble(ctx, [[bx + 10, by - 100], [bx + 90, by - 150], [bx + 150, by - 180], [bx + 230, by - 262]], "#a4271c", 7, false, 21);
+  scribble(ctx, [[bx + 196, by - 258], [bx + 232, by - 264], [bx + 226, by - 228]], "#a4271c", 7, false, 22);
+  /** Label kecil yang membungkus ke baris berikutnya bila melewati tepi kanan post-it. */
+  const label = (text: string, x: number, y: number) => {
+    ctx.font = font(38);
+    let line = "";
+    for (const word of text.split(" ")) {
+      const next = line ? `${line} ${word}` : word;
+      if (ctx.measureText(next).width > w - x - 36 && line) {
+        ctx.fillText(line, x, y);
+        y += 44;
+        line = word;
+      } else line = next;
+    }
+    ctx.fillText(line, x, y);
+  };
+  ctx.fillStyle = ink;
+  ctx.font = font(104);
+  ctx.fillText(t.views, 350, 300);
+  label(t.viewsLabel, 356, 350);
+
+  // Kepala-kepala kecil (followers)
+  const fy = 520;
+  for (let i = 0; i < 4; i++) {
+    const x = 74 + i * 52;
+    scribble(ctx, circlePts(x, fy, 17, 17, 14), ink, 5, false, 30 + i);
+    scribble(ctx, Array.from({ length: 9 }, (_, k) => [x - 26 + (k / 8) * 52, fy + 58 - Math.sin((k / 8) * Math.PI) * 30] as [number, number]), ink, 5, false, 40 + i);
+  }
+  ctx.font = font(84);
+  ctx.fillText(t.followers, 330, 556);
+  label(t.followersLabel, 336, 602);
+
+  // Lingkup: 12 niche × 6 platform
+  ctx.font = font(40);
+  ctx.fillStyle = "#2c5f3a";
+  ctx.fillText(t.scope, 54, 712);
+  scribble(ctx, [[46, 726], [w - 70, 722]], "#2c5f3a", 4, false, 50);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
 }

@@ -84,8 +84,10 @@ const en = {
     lines: ["Open to fullstack & AI", "automation roles,", "and freelance builds."],
     color: YELLOW,
   } as Note,
+  /** Post-it hasil FarmAgent (angka dari pemilik): 12 niche × 6 platform. */
+  farmStats: { title: "The results", views: "100M", viewsLabel: "views, all accounts", followers: "100K", followersLabel: "followers, all platforms", scope: "12 niches × 6 platforms" },
   /** Lock screen iPhone: notifikasi yang mengantar ke footer. */
-  phone: { app: "Zaidan", title: "Got a project?", body: "Scroll down — my inbox is open.", date: "Portfolio · 2026" },
+  phone: { app: "Zaidan", title: "Got a project?", body: "Scroll down — my inbox is open.", locale: "en-GB", status: "Open for freelance", reply: "Tap to open" },
   /** Footer (dibuka setelah Contact): CTA + kontak + kredit. */
   cta: {
     a: "Let's build",
@@ -179,7 +181,8 @@ const id: typeof en = {
     lines: ["Terbuka untuk posisi fullstack", "& AI automation,", "juga proyek freelance."],
     color: YELLOW,
   },
-  phone: { app: "Zaidan", title: "Punya proyek?", body: "Scroll ke bawah — inbox saya terbuka.", date: "Portofolio · 2026" },
+  farmStats: { title: "Hasilnya", views: "100M", viewsLabel: "views, semua akun", followers: "100K", followersLabel: "followers, semua platform", scope: "12 niche × 6 platform" },
+  phone: { app: "Zaidan", title: "Punya proyek?", body: "Scroll ke bawah — inbox saya terbuka.", locale: "id-ID", status: "Terbuka untuk freelance", reply: "Ketuk untuk membuka" },
   cta: {
     a: "Ayo bangun",
     b: "sesuatu yang jalan sendiri.",

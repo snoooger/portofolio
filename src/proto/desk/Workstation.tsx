@@ -36,9 +36,10 @@ export function NotePad({ notes, index, size = 0.12, ...props }: ThreeElements["
   // Lembar lama: (1) terkelupas dari selotip, berengsel di tepi atas; (2) lepas dan jatuh karena gravitasi,
   // berayun & berputar sedikit; (3) mendarat berbaring di meja di bawah monitor dan tetap di sana
   // sampai lembar berikutnya jatuh. Koordinat lokal post-it (bidangnya miring ±8° mengikuti panel):
-  // permukaan meja ada di y ≈ −0.064 bila z lokal = 0.07.
+  // permukaan meja ada di y ≈ −0.064 bila z lokal = 0.07. Mendarat ±2.5 mm di atas meja — di atas bidang
+  // bayangan kontak (1.3 mm) supaya lembar tidak tampak "terpotong" masuk ke meja — dan di kanan keyboard.
   const PEEL = 0.55;
-  const LAND = { x: 0.035, y: -0.064, z: 0.07, rx: -Math.PI / 2 + 0.138, rz: 0.45 };
+  const LAND = { x: 0.07, y: -0.0622, z: 0.07, rx: -Math.PI / 2 + 0.138, rz: 0.45 };
 
   useFrame((_, dt) => {
     const s = state.current;

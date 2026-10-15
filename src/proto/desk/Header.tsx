@@ -1,6 +1,6 @@
 "use client";
 
-// Header prototipe meja: satu bilah kaca hijau tua (senada footer) yang melayang di atas scene. Kiri wordmark nama,
+// Header prototipe meja: satu bilah kaca hijau tua (senada footer) yang melayang di atas scene. Kiri logo,
 // tengah navigasi dengan penanda section aktif (mengikuti scroll), kanan toggle bahasa EN/ID.
 // Garis progres tipis di bawah bilah menunjukkan posisi di sepanjang perjalanan meja.
 // Di HP navigasi pindah ke menu tarik-turun.
@@ -9,6 +9,7 @@ import type { Drive } from "../objects/types";
 import type { Copy, Lang } from "./copy";
 import { NAME } from "./copy";
 import { deskIndex } from "./stops";
+import { Logo } from "./Logo";
 
 /** Rentang perhentian tiap item navigasi (Work = FarmAgent … Security, Experience = pengalaman … pendidikan). */
 const NAV = [
@@ -65,15 +66,9 @@ export function DeskHeader({
     <header className="fixed inset-x-0 top-0 z-40 px-3 pt-3 md:px-6 md:pt-5">
       <div className="relative mx-auto flex h-12 max-w-5xl items-center justify-between gap-3 overflow-hidden rounded-full border border-white/10 bg-[#1d3a2b]/85 pl-1.5 pr-1.5 text-[#fbf3e3] shadow-[0_10px_34px_-12px_rgba(16,36,26,0.6)] backdrop-blur-md md:h-14 md:pl-2 md:pr-2">
         {/* Identitas */}
-        {/* Wordmark saja (tanpa logo): nama serif + titik aksen terakota */}
-        <button onClick={() => go("hero")} className="flex min-w-0 items-center gap-2 rounded-full py-1 pl-4 pr-3 text-left transition hover:bg-white/5">
-          <span className="min-w-0">
-            <span className="block truncate font-display text-[19px] leading-none md:text-[22px]">
-              {NAME}
-              <span className="text-[#f5c84c]">.</span>
-            </span>
-            <span className="mt-1 hidden truncate font-mono text-[9.5px] uppercase tracking-[0.12em] text-[#fbf3e3]/60 lg:block">{copy.role}</span>
-          </span>
+        {/* Logo saja (sama dengan favicon) */}
+        <button onClick={() => go("hero")} aria-label={`${NAME} — home`} className="flex shrink-0 items-center rounded-full p-1 transition hover:bg-white/10">
+          <Logo size={38} className="rounded-[10px] md:h-[42px] md:w-[42px]" />
         </button>
 
         {/* Navigasi (desktop) */}

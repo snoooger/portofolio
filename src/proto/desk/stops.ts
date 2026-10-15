@@ -39,9 +39,9 @@ export const DESK_STOPS: DeskStop[] = [
   // Hero ala P1: hampir tegak lurus di atas cutting mat; kertas "Portofolio" di tengah.
   { id: "hero", pos: [-0.05, TOP + 1.32, 0.78], look: [-0.05, TOP, 0.22], span: 0.86 },
   { id: "about", pos: [0.28, TOP + 0.6, 0.66], look: [0.28, TOP, 0.31], span: 0.36, text: { side: 1, top: -0.2 } },
-  // Rak menghadap kamera di kanan; post-it FarmAgent di pelat label atas rak, sejajar & tepat di samping
-  // teks 3D yang melayang di depan dinding polos — pola yang sama dengan Skills.
-  { id: "farmagent", pos: [-0.42, TOP + 0.75, 1.05], look: [-0.84, TOP + 0.45, -0.2], span: 0.85, text: { side: -1, top: 0.4 } },
+  // Zoom ke pelat label atas rak: post-it FarmAgent + post-it hasil (100M views / 100K followers)
+  // terbaca bersamaan dengan teks 3D di sebelah kirinya — pola yang sama dengan Skills.
+  { id: "farmagent", pos: [-0.5, TOP + 0.85, 0.72], look: [-0.8, TOP + 0.63, -0.16], span: 0.62, text: { side: -1, top: 0.3 } },
   // Monitor: pusat panel layar di x 0.1, y TOP+0.30 (diukur dari model Studio Display).
   { id: "sonar", pos: [0.08, TOP + 0.4, 0.62], look: [0.1, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: -0.06 } },
   { id: "promptedsite", pos: [0.1, TOP + 0.4, 0.61], look: [0.11, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: -0.06 } },

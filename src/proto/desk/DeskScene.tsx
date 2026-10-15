@@ -12,6 +12,7 @@ import { stopMix } from "../useScrollProgress";
 import { Pencil, Sheet } from "../objects/DeskProps";
 import { Asset, MODELS } from "../hd/Asset";
 import { useFonts, type Fonts } from "../final/useFonts";
+import type { DeskDrive } from "./deskScroll";
 import { PLATE, PhoneFarmRack, RACK } from "./PhoneFarmRack";
 import { HD, Model, type Fit } from "./Model";
 import { Workstation } from "./Workstation";
@@ -20,7 +21,6 @@ import { useHands } from "./useHands";
 import { BOARD_Y, DESK, DESK_STOPS, SPOT, TOP, WALL_Z, deskIndex, poseOf, spanOf } from "./stops";
 import { IPhone } from "./IPhone";
 import type { Copy, Note } from "./copy";
-import type { Drive } from "../objects/types";
 import type { Quality } from "./quality";
 import { applyFraming, makeAxes } from "./frame";
 import { DeskText } from "./DeskText";
@@ -405,7 +405,7 @@ function ShadowBake({ deps }: { deps: unknown[] }) {
 // Post-processing dimuat terpisah hanya bila tier memakainya (HP & laptop biasa tidak mengunduhnya).
 const Post = lazy(() => import("./Post").then((m) => ({ default: m.Post })));
 
-export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive; copy: Copy; quality: Quality; onReady?: () => void; onPhone?: () => void }) {
+export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDrive; copy: Copy; quality: Quality; onReady?: () => void; onPhone?: () => void }) {
   const fonts = useFonts();
   const pbr = useRoomPBR();
   const mat = useMemo(() => matTexture("#2f6f55"), []); // hijau cutting mat klasik
@@ -463,7 +463,8 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
   useFrame((state, dt) => {
     const v = f.current;
     const { camera, pointer } = state;
-    const { a, b, t } = stopMix(v, DESK_STOPS.length, 0.3);
+    // f sudah diam di zona tahan tiap perhentian (deskScroll), jadi kamera bergerak hampir sepanjang perjalanan.
+    const { a, b, t } = stopMix(v, DESK_STOPS.length, 0.08);
     const { p, l } = tmp.current;
     const V = vecs[(camera as THREE.PerspectiveCamera).aspect < 1 ? 1 : 0];
     p.lerpVectors(V[a].p, V[b].p, t);
@@ -493,7 +494,8 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
     farmRun.current = THREE.MathUtils.clamp((v - (I.farm - 0.5)) / 0.8, 0, 1) * (v > I.farm + 0.8 ? 0 : 1);
     screen.current = v > I.sonar - 0.5 && v < I.sec + 0.6 ? v - I.sonar : -1;
     noteIdx.current = THREE.MathUtils.clamp(v - I.sonar, 0, 3);
-    galleryScroll.current = THREE.MathUtils.clamp((v - (I.ps - 0.4)) / 0.8, 0, 1);
+    // Halaman PromptedSite di monitor ikut bergulir mengikuti scroll, termasuk selama zona tahan.
+    galleryScroll.current = THREE.MathUtils.clamp(f.raw - (I.ps - 0.5), 0, 1);
   });
 
   const [rx, rz] = SPOT.rack;

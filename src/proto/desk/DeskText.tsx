@@ -164,7 +164,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
       // Gradasi baru muncul setelah kamera benar-benar berhenti di perhentian ini (scroll sudah "terkunci"),
       // dan langsung memudar begitu mulai berpindah — tidak ikut terbang bersama teks.
       const m = scrimMat.current;
-      const settled = Math.abs(d) < 0.015;
+      const settled = Math.abs(d) < 0.02;
       m.opacity = THREE.MathUtils.damp(m.opacity, settled ? 1 : 0, settled ? 5 : 14, dt);
       m.visible = m.opacity > 0.01;
     }
@@ -202,7 +202,8 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
       {rows.map((r, i) => (
         <group key={i} ref={(g) => void (refs.current[i] = g)} visible={false} userData={r.kind === "facts" ? { h: 0.15 } : r.kind === "cta" ? { h: CTA_H } : {}}>
           {r.kind === "kicker" && (
-            <T font={FONT.mono} size={0.036} color={th.accent} th={th} letterSpacing={0.16} width={W}>
+            // Label section: huruf tebal (bukan mono tipis) supaya tetap terbaca di layar kecil.
+            <T font={FONT.bold} size={portrait ? 0.044 : 0.034} color={th.accent} th={th} letterSpacing={0.12} width={W}>
               {r.text}
             </T>
           )}
@@ -212,7 +213,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
             </T>
           )}
           {r.kind === "body" && (
-            <T font={FONT.sans} size={0.046} color={th.body} th={th} lineHeight={1.4} width={Math.min(W, 1.05)}>
+            <T font={FONT.sans} size={portrait ? 0.053 : 0.046} color={th.body} th={th} lineHeight={1.4} width={Math.min(W, 1.05)}>
               {r.text}
             </T>
           )}

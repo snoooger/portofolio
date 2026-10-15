@@ -7,7 +7,7 @@
 // Sekaligus mengukur FPS (hanya selama render beruntun) untuk menurunkan tier bila perangkat kewalahan.
 import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
-import type { Drive } from "../objects/types";
+import type { DeskDrive } from "./deskScroll";
 
 /** Lama render tetap jalan setelah aktivitas terakhir: cukup untuk damping kamera/teks & animasi kertas jatuh. */
 const TAIL = 2600;
@@ -19,7 +19,7 @@ export function RenderLoop({
   onDecline,
   pokeKey,
 }: {
-  f: Drive;
+  f: DeskDrive;
   /** Animasi berkelanjutan yang bergantung pada posisi scroll (mis. layar HP farm berputar). */
   busy: (v: number) => boolean;
   /** Adegan siap: mulai mengukur FPS & boleh berhenti render saat diam. */
@@ -48,13 +48,14 @@ export function RenderLoop({
     window.addEventListener("resize", poke, opts);
     document.addEventListener("visibilitychange", poke);
 
-    let raf = 0, last = NaN, prevActive = false, prevT = 0;
+    let raf = 0, last = NaN, lastRaw = NaN, prevActive = false, prevT = 0;
     // Pengukuran FPS: jendela 250 ms, dinilai tiap 10 jendela (seperti drei PerformanceMonitor).
     const m = { n: 0, t: 0, windows: 0, low: 0, warm: 0 };
     const tick = (now: number) => {
       const v = f.current;
-      if (v !== last) {
+      if (v !== last || f.raw !== lastRaw) {
         last = v;
+        lastRaw = f.raw;
         poke();
       }
       // Selama memuat (belum siap) render terus, supaya aset yang datang langsung tampil & bayangan ter-bake.

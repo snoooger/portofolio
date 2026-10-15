@@ -8,7 +8,6 @@ import type Lenis from "lenis";
 import { useProgress } from "@react-three/drei";
 import { Stage } from "../Stage";
 import { StopDots } from "../ui";
-import { useStops } from "../useScrollProgress";
 import { scrollToStop } from "../ProtoScroll";
 import { DeskScene } from "./DeskScene";
 import { DESK_STOPS, deskIndex } from "./stops";
@@ -19,6 +18,7 @@ import { DeskFooter } from "./Footer";
 import { Logo } from "./Logo";
 import { ScrollHint } from "./ScrollHint";
 import { RenderLoop } from "./RenderLoop";
+import { STOP_SVH, stopY, useDeskScroll } from "./deskScroll";
 import { QUALITY, detectTier, lowerTier, type Tier } from "./quality";
 
 const N = DESK_STOPS.length;
@@ -47,7 +47,9 @@ function useTier() {
 
 export function DeskProto() {
   const root = useRef<HTMLElement>(null);
-  const f = useStops(root, N);
+  // Scroll jacking berbasis scroll: zona tahan di tiap perhentian + batas momentum (lihat deskScroll.ts).
+  const drive = useDeskScroll(root, N);
+  const f = drive;
   const [lang, setLang] = useState<Lang>("en");
   const copy = COPY[lang];
   const goTo = (id: string) => scrollToStop(root.current, deskIndex(id), N);
@@ -65,88 +67,21 @@ export function DeskProto() {
   const { base, tier, decline } = useTier();
   const q = tier ? QUALITY[tier] : null;
 
-  // Snap lembut ke perhentian terdekat setelah scroll berhenti, supaya tulisan sempat terbaca.
+  // Tombol keyboard (panah, PageUp/Down, spasi): satu tekan = satu perhentian (N = footer).
   useEffect(() => {
-    let timer = 0;
-    let lenis: Lenis | undefined;
-    const onScroll = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        // Jangan snap di tengah scroll terprogram (klik navigasi); frame lambat di HP bisa memicu timer.
-        if (lenis?.isScrolling === "smooth") return;
-        // Di antara meja & footer: lengkapi ke salah satunya.
-        const { end, max } = bounds();
-        if (window.scrollY > end + 4 && window.scrollY < max - 4) {
-          lenis?.scrollTo(window.scrollY - end > (max - end) / 2 ? max : end, { duration: 0.8 });
-          return;
-        }
-        const k = Math.round(f.current);
-        if (Math.abs(f.current - k) > 0.03) scrollToStop(root.current, k, N);
-      }, 220);
-    };
-
-    // Satu gestur = satu section. Setelah tiba, input diabaikan sejenak (DWELL) supaya isi section
-    // sempat terbaca sebelum bisa lanjut. Roda mouse, swipe sentuh, dan tombol keyboard.
-    const DWELL = 650, TRAVEL = 1.0;
-    const step = { busy: false, until: 0, acc: 0 };
-    const go = (dir: number) => {
-      const el = root.current;
-      if (!el || !lenis) return;
-      const now = performance.now();
-      if (step.busy || now < step.until) return;
-      // Indeks 0…N−1 = perhentian meja, N = footer.
-      const { end, max } = bounds();
-      const cur = window.scrollY > end + 4 ? N : Math.round(f.current);
-      const k = clampInt(cur + dir, 0, N);
-      if (k === cur && (k === N || Math.abs(f.current - k) < 0.03)) return;
-      step.busy = true;
-      const y = k === N ? max : el.offsetTop + ((el.offsetHeight - window.innerHeight) * k) / (N - 1);
-      lenis.scrollTo(y, {
-        duration: TRAVEL,
-        lock: true,
-        onComplete: () => {
-          step.busy = false;
-          step.until = performance.now() + (k === 0 ? 250 : DWELL);
-          step.acc = 0;
-        },
-      });
-    };
-    const virtualScroll = ({ deltaY, event }: { deltaY: number; event: Event }) => {
-      if ((event as WheelEvent).ctrlKey || deltaY === 0) return true; // zoom, tap & klik tetap jalan
-      if (event.cancelable) event.preventDefault(); // tahan scroll bawaan (termasuk sentuh)
-      if (step.busy || performance.now() < step.until) return false;
-      step.acc += deltaY;
-      if (Math.abs(step.acc) >= (event.type.startsWith("touch") ? 24 : 14)) {
-        go(Math.sign(step.acc));
-        step.acc = 0;
-      }
-      return false;
-    };
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName))) return;
       const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? (e.shiftKey && e.key === " " ? -1 : 1) : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
-      if (!dir) return;
+      const el = root.current, lenis = lenisOf();
+      if (!dir || !el || !lenis) return;
       e.preventDefault();
-      go(dir);
+      const cur = window.scrollY > bounds().end + 4 ? N : Math.round(f.current);
+      const k = clampInt(cur + dir, 0, N);
+      if (k !== cur) lenis.scrollTo(stopY(el, k, N), { duration: 1.0, lock: true });
     };
-
-    const attach = window.setInterval(() => {
-      lenis = (window as unknown as { __lenis?: Lenis }).__lenis;
-      if (lenis) {
-        lenis.on("scroll", onScroll);
-        lenis.options.virtualScroll = virtualScroll;
-        window.addEventListener("keydown", onKey);
-        window.clearInterval(attach);
-      }
-    }, 100);
-    return () => {
-      window.clearInterval(attach);
-      window.clearTimeout(timer);
-      lenis?.off("scroll", onScroll);
-      if (lenis) lenis.options.virtualScroll = undefined;
-      window.removeEventListener("keydown", onKey);
-    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [f]);
 
   // "Kertas" meja terangkat mengikuti scroll setelah perhentian terakhir, memperlihatkan footer.
@@ -171,7 +106,7 @@ export function DeskProto() {
 
   return (
     <>
-    <main ref={root} style={{ height: `${N * 140}svh` }}>
+    <main ref={root} style={{ height: `${N * STOP_SVH}svh` }}>
       <div ref={sheet} className="fixed inset-0 z-10 overflow-hidden bg-cream will-change-transform" aria-hidden>
         {q && (
           <Stage

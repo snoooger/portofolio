@@ -8,7 +8,8 @@ import { gsap, ScrollTrigger, prefersReducedMotion } from "@/lib/gsap";
 export function ProtoScroll() {
   useEffect(() => {
     if (prefersReducedMotion()) return;
-    const lenis = new Lenis({ lerp: 0.09, smoothWheel: true });
+    // syncTouch: sentuhan juga ditangani Lenis, jadi batas momentum di tiap perhentian meja berlaku di HP.
+    const lenis = new Lenis({ lerp: 0.09, smoothWheel: true, syncTouch: true });
     lenis.on("scroll", ScrollTrigger.update);
     (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
     const tick = (time: number) => lenis.raf(time * 1000);

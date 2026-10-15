@@ -23,19 +23,23 @@ function lockScreen(f: Fonts, copy: Copy) {
   c.width = SW;
   c.height = SH;
   const ctx = c.getContext("2d")!;
-  // Wallpaper: gradasi hangat terakota → krem dengan lingkaran lembut
-  const g = ctx.createLinearGradient(0, 0, SW * 0.4, SH);
-  g.addColorStop(0, "#c2552f");
-  g.addColorStop(0.55, "#e3a07a");
-  g.addColorStop(1, "#f2e3cf");
+  // Wallpaper gelap senada situs: hijau tua (footer) → cokelat espresso, dengan cahaya terakota & kuning lembut
+  const g = ctx.createLinearGradient(0, 0, SW * 0.5, SH);
+  g.addColorStop(0, "#1d3a2b");
+  g.addColorStop(0.6, "#22231a");
+  g.addColorStop(1, "#2a1d14");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, SW, SH);
-  for (const [x, y, r, a] of [[120, 360, 260, 0.18], [480, 900, 320, 0.14], [300, 1180, 220, 0.12]]) {
+  for (const [x, y, r, col] of [[470, 300, 300, "194,85,47,0.45"], [90, 1020, 340, "245,200,76,0.16"], [320, 760, 260, "194,85,47,0.18"]] as const) {
     const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
-    rg.addColorStop(0, `rgba(255,248,236,${a})`);
-    rg.addColorStop(1, "rgba(255,248,236,0)");
+    rg.addColorStop(0, `rgba(${col})`);
+    rg.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = rg;
     ctx.fillRect(0, 0, SW, SH);
+  }
+  for (let i = 0; i < 9000; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.03})`;
+    ctx.fillRect(Math.random() * SW, Math.random() * SH, 2, 2);
   }
   // Dynamic island + status
   ctx.fillStyle = "#000";
@@ -48,10 +52,10 @@ function lockScreen(f: Fonts, copy: Copy) {
   ctx.fill();
   // Tanggal & jam
   ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.fillStyle = "rgba(251,243,227,0.85)";
   ctx.font = `600 30px ${f.sans}`;
   ctx.fillText(copy.phone.date, SW / 2, 200);
-  ctx.fillStyle = "#fff";
+  ctx.fillStyle = "#fbf3e3";
   ctx.font = `200px ${f.serif}`;
   ctx.fillText("9:41", SW / 2, 370);
   // Notifikasi

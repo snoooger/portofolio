@@ -77,7 +77,7 @@ const en = {
     { role: "Frontend Developer Intern", org: "Kementerian PUPR", period: "Aug — Nov 2025", line: "Built Insight Hub: API catalog, dashboards, RBAC." },
     { role: "Data Analyst Intern", org: "PT PLN (Persero)", period: "Feb — Mar 2025", line: "Anomaly detection: 4,422 possible illegal connections flagged." },
   ],
-  certificates: { title: "Issued by", lines: ["Huawei, Google, Microsoft,", "ID-Networkers, Coding Studio.", "2023 — 2026"], color: GREEN } as Note,
+  certificates: { title: "Issued by", lines: ["Huawei, Google, Microsoft,", "ID-Networkers, Coding Studio.", "2024 — 2026"], color: GREEN } as Note,
   education: { title: "GPA 3.65 / 4.00", lines: ["Graduated", "September 2026"], color: BLUE } as Note,
   contact: {
     title: "Let's talk!",
@@ -172,7 +172,7 @@ const id: typeof en = {
     { role: "Frontend Developer Intern", org: "Kementerian PUPR", period: "Agu — Nov 2025", line: "Membangun Insight Hub: katalog API, dashboard, RBAC." },
     { role: "Data Analyst Intern", org: "PT PLN (Persero)", period: "Feb — Mar 2025", line: "Deteksi anomali: 4.422 dugaan sambungan ilegal ditandai." },
   ],
-  certificates: { title: "Diterbitkan oleh", lines: ["Huawei, Google, Microsoft,", "ID-Networkers, Coding Studio.", "2023 — 2026"], color: GREEN },
+  certificates: { title: "Diterbitkan oleh", lines: ["Huawei, Google, Microsoft,", "ID-Networkers, Coding Studio.", "2024 — 2026"], color: GREEN },
   education: { title: "IPK 3.65 / 4.00", lines: ["Lulus", "September 2026"], color: BLUE },
   contact: {
     title: "Ayo ngobrol!",

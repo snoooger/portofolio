@@ -2,84 +2,104 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
-export const alt = "Zaidan Jibran Azhar — Fullstack Developer & AI Automation Engineer";
+export const alt = "Zaidan Jibran Azhar — Open for freelance: Fullstack Developer & AI Automation Engineer";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const font = (f: string) => readFile(join(process.cwd(), "public/fonts-proto", f));
+const file = (p: string) => readFile(join(process.cwd(), "public", p));
 
-/** Gambar pratinjau tautan: kertas krem di atas cutting mat hijau, dengan post-it nama proyek. */
+/**
+ * Gambar pratinjau tautan (Threads, LinkedIn, WhatsApp, X): render asli meja 3D sebagai latar,
+ * gradasi hijau tua (senada footer) di kiri, badge "Open for freelance", nama, peran, layanan, alamat.
+ */
 export default async function OpengraphImage() {
-  const [serif, hand, mono, sans] = await Promise.all([
-    font("instrument-serif-latin-400-normal.woff"),
-    font("caveat-latin-700-normal.woff"),
-    font("jetbrains-mono-latin-500-normal.woff"),
-    font("inter-tight-latin-600-normal.woff"),
+  const [bg, serif, serifItalic, sans, sansBold, mono] = await Promise.all([
+    file("og/desk.jpg"),
+    file("fonts-proto/instrument-serif-latin-400-normal.woff"),
+    file("fonts-proto/instrument-serif-latin-400-italic.woff"),
+    file("fonts-proto/inter-tight-latin-600-normal.woff"),
+    file("fonts-proto/inter-tight-latin-700-normal.woff"),
+    file("fonts-proto/jetbrains-mono-latin-500-normal.woff"),
   ]);
-  const notes = [
-    { t: "FarmAgent", c: "#F6DD7A", r: -5, x: 820, y: 70 },
-    { t: "Sonar", c: "#BFD7E6", r: 4, x: 970, y: 190 },
-    { t: "PromptedSite", c: "#F2B8A8", r: -3, x: 800, y: 300 },
-    { t: "ViralEngine", c: "#C9DDB0", r: 6, x: 960, y: 410 },
-  ];
+  const bgSrc = `data:image/jpeg;base64,${bg.toString("base64")}`;
+  const cream = "#fbf3e3", yellow = "#f5c84c", green = "#10241a";
+
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", background: "#2f6f55", position: "relative" }}>
-        {/* Kertas */}
+      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: green }}>
+        <img src={bgSrc} alt="" width={1200} height={630} style={{ position: "absolute", left: 250, top: 0, width: 1200, height: 630, objectFit: "cover" }} />
         <div
           style={{
             position: "absolute",
-            left: 60,
-            top: 70,
-            width: 700,
-            height: 490,
-            background: "#fbf7f1",
-            transform: "rotate(-2deg)",
-            boxShadow: "0 30px 60px rgba(0,0,0,0.35)",
+            left: 0,
+            top: 0,
+            width: 1200,
+            height: 630,
             display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
+            background: "linear-gradient(90deg, rgba(16,36,26,1) 0%, rgba(16,36,26,0.97) 40%, rgba(16,36,26,0.6) 60%, rgba(16,36,26,0) 80%)",
           }}
-        >
-          <div style={{ fontFamily: "Caveat", fontSize: 92, color: "#c2552f", lineHeight: 1 }}>Portfolio</div>
-          <div style={{ fontFamily: "Instrument Serif", fontSize: 72, color: "#1e1b18", marginTop: 18 }}>Zaidan Jibran Azhar</div>
-          <div style={{ fontFamily: "JetBrains Mono", fontSize: 17, letterSpacing: 2, color: "#5c544b", marginTop: 26 }}>
-            FULLSTACK DEVELOPER & AI AUTOMATION ENGINEER
+        />
+        <div style={{ position: "relative", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 64px", width: 640 }}>
+          <div style={{ display: "flex" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                background: yellow,
+                color: green,
+                fontFamily: "Inter Tight",
+                fontWeight: 700,
+                fontSize: 20,
+                letterSpacing: 2,
+                padding: "10px 20px",
+                borderRadius: 999,
+              }}
+            >
+              <div style={{ width: 10, height: 10, borderRadius: 999, background: "#1f8a4c", marginRight: 12 }} />
+              OPEN FOR FREELANCE
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 30, fontFamily: "Instrument Serif", fontSize: 88, lineHeight: 0.95, color: cream }}>
+            <span>Zaidan Jibran</span>
+            <span>Azhar</span>
+          </div>
+          <div style={{ display: "flex", marginTop: 14, fontFamily: "Instrument Serif Italic", fontSize: 40, color: yellow }}>
+            Fullstack & AI Automation Engineer
+          </div>
+          <div style={{ display: "flex", marginTop: 30 }}>
+            {["Web App", "Landing Page 3D", "AI Automation"].map((s) => (
+              <div
+                key={s}
+                style={{
+                  display: "flex",
+                  border: "2px solid rgba(251,243,227,0.55)",
+                  color: cream,
+                  fontFamily: "Inter Tight",
+                  fontWeight: 600,
+                  fontSize: 20,
+                  padding: "8px 16px",
+                  borderRadius: 999,
+                  marginRight: 10,
+                }}
+              >
+                {s}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", marginTop: 36, fontFamily: "JetBrains Mono", fontSize: 22, color: "rgba(251,243,227,0.85)" }}>
+            zaidanjibran.vercel.app
           </div>
         </div>
-        {notes.map((n) => (
-          <div
-            key={n.t}
-            style={{
-              position: "absolute",
-              left: n.x,
-              top: n.y,
-              width: 190,
-              height: 150,
-              background: n.c,
-              transform: `rotate(${n.r}deg)`,
-              boxShadow: "0 14px 28px rgba(0,0,0,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "Inter Tight",
-              fontSize: 26,
-              color: "#1d2333",
-            }}
-          >
-            {n.t}
-          </div>
-        ))}
       </div>
     ),
     {
       ...size,
       fonts: [
         { name: "Instrument Serif", data: serif, weight: 400 },
-        { name: "Caveat", data: hand, weight: 700 },
-        { name: "JetBrains Mono", data: mono, weight: 500 },
+        { name: "Instrument Serif Italic", data: serifItalic, weight: 400 },
         { name: "Inter Tight", data: sans, weight: 600 },
+        { name: "Inter Tight", data: sansBold, weight: 700 },
+        { name: "JetBrains Mono", data: mono, weight: 500 },
       ],
     },
   );

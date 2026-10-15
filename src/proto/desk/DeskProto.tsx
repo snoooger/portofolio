@@ -3,6 +3,7 @@
 // Prototipe final konsep meja (lanjutan P1). DOM hanya untuk navigasi, bahasa, loader, dan footer;
 // semua penjelasan ada di post-it di dalam scene.
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import * as THREE from "three";
 import type Lenis from "lenis";
 import { PerformanceMonitor, useProgress } from "@react-three/drei";
 import { Stage } from "../Stage";
@@ -170,8 +171,12 @@ export function DeskProto() {
             env="/assets-3d/hdri/museum_of_ethnography_1k.hdr"
             camera={{ fov: 45, position: DESK_STOPS[0].pos, near: 0.02, far: 60 }}
             dpr={q.dpr}
-            shadows={QUALITY[base!].shadows /* tetap sejak awal; saat turun tier, lampu berhenti berbayang */}
+            // Tipe peta bayangan ditetapkan sekali dari tier awal: high = PCF + PCSS, mid/low = VSM lembut.
+            shadows={QUALITY[base!].soft ? true : "variance"}
             antialias={q.antialias}
+            toneMapping={THREE.NeutralToneMapping /* warna lebih natural & dalam daripada ACES */}
+            exposure={0.9}
+            envIntensity={0.5}
           >
             {/* FPS rata-rata terlalu rendah beberapa kali berturut-turut → turunkan tier (maks. dua kali). */}
             {ready && <PerformanceMonitor flipflops={3} bounds={() => [36, 58]} onDecline={decline} />}

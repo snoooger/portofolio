@@ -2,7 +2,7 @@
 // lebar layar, GPU), lalu bisa turun otomatis bila FPS jatuh (PerformanceMonitor di DeskProto).
 //   high : desktop kuat  — bayangan lembut PCSS, cahaya layar monitor, lampu meja berbayang, post-processing
 //   mid  : laptop/HP bagus — bayangan biasa 1024, bloom saja
-//   low  : HP/laptop lemah — tanpa bayangan dinamis & post-processing, dpr 1
+//   low  : HP/laptop lemah — bayangan bake 1024, tanpa post-processing, dpr ≤ 1.5
 
 export type Tier = "high" | "mid" | "low";
 
@@ -22,9 +22,10 @@ export type Quality = {
 
 export const QUALITY: Record<Tier, Quality> = {
   // dpr maksimum 2: layar HP (dpr 3) tetap tajam tanpa biaya render 9× lipat.
-  high: { tier: "high", dpr: [1, 2], shadows: true, shadowMap: 2048, soft: true, practicals: true, post: "full", antialias: true },
-  mid: { tier: "mid", dpr: [1, 2], shadows: true, shadowMap: 1024, soft: false, practicals: true, post: "none", antialias: true },
-  low: { tier: "low", dpr: [1, 1.5], shadows: false, shadowMap: 512, soft: false, practicals: false, post: "none", antialias: true },
+  // Bayangan di-bake sekali (adegan statis), jadi resolusi peta bayangan bisa tinggi & tier low tetap berbayang.
+  high: { tier: "high", dpr: [1, 2], shadows: true, shadowMap: 4096, soft: true, practicals: true, post: "full", antialias: true },
+  mid: { tier: "mid", dpr: [1, 2], shadows: true, shadowMap: 2048, soft: false, practicals: true, post: "none", antialias: true },
+  low: { tier: "low", dpr: [1, 1.5], shadows: true, shadowMap: 1024, soft: false, practicals: false, post: "none", antialias: true },
 };
 
 /** GPU kelas bawah yang dikenali dari nama renderer WebGL. */

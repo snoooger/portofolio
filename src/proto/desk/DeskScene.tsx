@@ -3,7 +3,7 @@
 // Konsep meja (lanjutan P1): satu meja kerja nyata dilihat dari atas, kamera miring 3/4 ke benda
 // yang berdiri. Semua penjelasan tertulis tangan di post-it. Benda bergerak hanya karena scroll.
 import { useEffect, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { RoundedBox, SoftShadows, useGLTF, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, SSAO, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
@@ -26,6 +26,7 @@ import type { Quality } from "./quality";
 import { applyFraming, makeAxes } from "./frame";
 import { DeskText } from "./DeskText";
 import { GradCorner } from "./GradCorner";
+import { ContactShadow } from "./ContactShadow";
 
 [MODELS.lamp, MODELS.plant, MODELS.binder].forEach((m) => useGLTF.preload(m));
 
@@ -284,6 +285,28 @@ function useRoomPBR() {
   }, [floor, wall, oak]);
 }
 
+/**
+ * Adegan meja statis (cahaya & benda tidak bergerak), jadi peta bayangan cukup dirender ulang saat
+ * isinya berubah (model/post-it selesai dimuat, tier berganti) — bukan setiap frame. Hemat GPU, sehingga
+ * resolusi bayangan bisa tinggi dan tier low pun tetap berbayang.
+ */
+function ShadowBake({ deps }: { deps: unknown[] }) {
+  const get = useThree((s) => s.get);
+  useEffect(() => {
+    const sm = get().gl.shadowMap;
+    sm.autoUpdate = false;
+    sm.needsUpdate = true;
+    // Ulangi beberapa kali: tekstur & geometri yang baru diunggah ke GPU bisa muncul satu-dua frame kemudian.
+    const ts = [200, 800, 2000, 4000].map((ms) => window.setTimeout(() => (get().gl.shadowMap.needsUpdate = true), ms));
+    return () => {
+      ts.forEach(window.clearTimeout);
+      get().gl.shadowMap.autoUpdate = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return null;
+}
+
 /** Efek layar sesuai tier: AO + bloom + vignette (high), bloom (mid), tanpa post (low). */
 function Post({ mode }: { mode: Quality["post"] }) {
   if (mode === "none") return null;
@@ -413,8 +436,9 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
     <>
       <color attach="background" args={[P.cream]} />
       {/* Dengan bayangan: cahaya pengisi diredam supaya bayangan jendela terbaca; tanpa bayangan: lebih rata */}
-      <ambientLight intensity={q.shadows ? 0.1 : 0.3} />
-      <hemisphereLight args={["#fffaf2", "#d9c7ae", q.shadows ? 0.42 : 0.5]} />
+      {/* Cahaya pengisi tipis: biar bayangan jendela & kontak terbaca (adegan tidak datar) */}
+      <ambientLight intensity={0.05} />
+      <hemisphereLight args={["#fff6ea", "#c9b293", 0.3]} />
       {/* Bayangan lembut PCSS: tajam di dekat titik kontak, makin kabur makin jauh (seperti cahaya jendela asli) */}
       {q.soft && <SoftShadows size={10} samples={12} focus={0.4} />}
       {/* Cahaya jendela dari kiri depan; di-remount saat tier berubah supaya peta bayangan dibuat ulang */}
@@ -422,9 +446,12 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
         key={q.tier}
         castShadow={q.shadows}
         position={[-2.2, 3.4, 2.2]}
-        intensity={q.shadows ? 2.1 : 1.35}
+        intensity={2.5}
         color="#fff1df"
         shadow-mapSize={[q.shadowMap, q.shadowMap]}
+        // VSM (tier mid/low): radius = lebar blur penumbra, dihitung sekali saat bake
+        shadow-radius={8}
+        shadow-blurSamples={16}
         shadow-camera-left={-2}
         shadow-camera-right={2}
         shadow-camera-top={2}
@@ -565,6 +592,24 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
       {/* Penjelasan tiap perhentian: teks 3D melayang di sisi kosong bingkai */}
       <DeskText f={f} copy={copy} />
 
+      {/* Bayangan kontak di bawah benda yang menempel di meja (di atas cutting mat, di bawah kertas) */}
+      {(() => {
+        const y = TOP + 0.0013;
+        return (
+          <>
+            <ContactShadow x={mx - 0.02} z={mz + 0.22} y={y} w={0.33} d={0.11} />
+            <ContactShadow x={mx + 0.6} z={mz - 0.08} y={y} w={0.2} d={0.2} rot={-0.1} opacity={0.6} />
+            <ContactShadow x={mx} z={mz - 0.02} y={y} w={0.17} d={0.19} opacity={0.45} />
+            <ContactShadow x={phx} z={phz} y={y} w={0.078} d={0.16} rot={-0.2} opacity={0.6} />
+            <ContactShadow x={-1.0} z={0.065} y={y} w={0.37} d={0.21} rot={0.35} opacity={0.45} />
+            <ContactShadow x={rx} z={rz} y={y} w={0.5} d={0.2} rot={0.32} opacity={0.4} />
+            <ContactShadow x={-0.4} z={-0.5} y={y} w={0.12} d={0.12} round opacity={0.55} />
+            <ContactShadow x={1.05} z={-0.36} y={y} w={0.16} d={0.16} round opacity={0.5} />
+            <ContactShadow x={px} z={pz} y={y} w={0.5} d={0.34} rot={-0.03} opacity={0.22} />
+          </>
+        );
+      })()}
+      <ShadowBake deps={[q.tier, !!fonts, !!hands, copy]} />
       <Post mode={q.post} />
     </>
   );

@@ -12,19 +12,31 @@ export function Stage({
   shadows = true,
   antialias = true,
   env,
+  envIntensity = 0.55,
+  toneMapping = THREE.ACESFilmicToneMapping,
+  exposure = 1,
   ...props
-}: CanvasProps & { children: ReactNode; env?: string; antialias?: boolean }) {
+}: Omit<CanvasProps, "shadows"> & {
+  children: ReactNode;
+  env?: string;
+  antialias?: boolean;
+  envIntensity?: number;
+  toneMapping?: THREE.ToneMapping;
+  exposure?: number;
+  /** true = PCF soft; "variance" = VSM (bayangan lembut, cocok bila peta bayangan di-bake). */
+  shadows?: boolean | "variance";
+}) {
   return (
     <Canvas
       dpr={[1, 1.75]}
-      shadows={shadows ? "soft" : false}
-      gl={{ antialias, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, outputColorSpace: THREE.SRGBColorSpace }}
+      shadows={shadows === "variance" ? "variance" : shadows ? "soft" : false}
+      gl={{ antialias, powerPreference: "high-performance", toneMapping, toneMappingExposure: exposure, outputColorSpace: THREE.SRGBColorSpace }}
       {...props}
     >
       <Suspense fallback={null}>{children}</Suspense>
       {env ? (
         // HDRI lokal (CC0, Poly Haven) untuk pantulan & cahaya realistis.
-        <Environment files={env} environmentIntensity={0.55} />
+        <Environment files={env} environmentIntensity={envIntensity} />
       ) : (
         <Environment resolution={256} frames={1} environmentIntensity={0.55}>
           <Lightformer form="rect" intensity={2.2} color="#fff6ea" position={[0, 6, 0]} rotation-x={Math.PI / 2} scale={[12, 12, 1]} />

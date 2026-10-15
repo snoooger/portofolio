@@ -9,7 +9,7 @@ export function ProtoScroll() {
   useEffect(() => {
     if (prefersReducedMotion()) return;
     // syncTouch: sentuhan juga ditangani Lenis, jadi batas momentum di tiap perhentian meja berlaku di HP.
-    const lenis = new Lenis({ lerp: 0.09, smoothWheel: true, syncTouch: true });
+    const lenis = new Lenis({ lerp: 0.12, smoothWheel: true, syncTouch: true, syncTouchLerp: 0.1, touchMultiplier: 1.15 });
     lenis.on("scroll", ScrollTrigger.update);
     (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
     const tick = (time: number) => lenis.raf(time * 1000);

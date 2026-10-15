@@ -483,12 +483,12 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
     const reach = Math.min(1, p.distanceTo(l) / 4);
     l.x += pointer.x * 0.08 * reach;
     l.y += pointer.y * 0.05 * reach;
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, p.x, 4.5, dt);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, p.y, 4.5, dt);
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, p.z, 4.5, dt);
-    look.current.x = THREE.MathUtils.damp(look.current.x, l.x, 4.5, dt);
-    look.current.y = THREE.MathUtils.damp(look.current.y, l.y, 4.5, dt);
-    look.current.z = THREE.MathUtils.damp(look.current.z, l.z, 4.5, dt);
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, p.x, 7, dt);
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, p.y, 7, dt);
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, p.z, 7, dt);
+    look.current.x = THREE.MathUtils.damp(look.current.x, l.x, 7, dt);
+    look.current.y = THREE.MathUtils.damp(look.current.y, l.y, 7, dt);
+    look.current.z = THREE.MathUtils.damp(look.current.z, l.z, 7, dt);
     camera.lookAt(look.current);
 
     farmRun.current = THREE.MathUtils.clamp((v - (I.farm - 0.5)) / 0.8, 0, 1) * (v > I.farm + 0.8 ? 0 : 1);

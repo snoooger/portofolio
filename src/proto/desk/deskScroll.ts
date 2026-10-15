@@ -6,15 +6,15 @@
 //   mengikuti jari/roda ke perhentian berikutnya.
 // - BATAS: momentum (flick/inersia trackpad) berhenti tepat saat masuk zona tahan sebuah perhentian; gestur
 //   yang sama tidak bisa melewatinya. Pengguna harus scroll lagi (gestur baru) melewati zona tahan.
-// - Bila berhenti di tengah perjalanan, halaman melengkapi ke tepi zona tahan terdekat (snap halus).
+// - Bila berhenti di tengah perjalanan, halaman melengkapi ke section searah gerakan (snap halus).
 // Semua posisi dihitung dari tinggi layar saat ini, jadi tetap tepat di HP saat bilah alamat muncul/hilang.
 import { useEffect, useState, type RefObject } from "react";
 import type Lenis from "lenis";
 
 /** Porsi jarak antarperhentian yang menjadi zona tahan (sisanya perjalanan kamera). */
-export const HOLD = 0.36;
+export const HOLD = 0.24;
 /** Tinggi tiap perhentian (svh) — menentukan berapa jauh scroll antarperhentian. */
-export const STOP_SVH = 110;
+export const STOP_SVH = 80;
 
 export type DeskDrive = {
   /** Perhentian 0 … n−1, tepat bilangan bulat di zona tahan. */
@@ -82,7 +82,7 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
 
   useEffect(() => {
     let lenis: Lenis | undefined;
-    let gesture = 0, lastWheel = 0;
+    let gesture = 0, lastWheel = 0, lastMag = 0;
     let arrived = { k: -1, gesture: -1, dir: 0 };
     let timer = 0;
 
@@ -92,8 +92,12 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
       const now = performance.now();
       if (type === "touchstart") gesture++;
       else if (type === "wheel") {
-        if (now - lastWheel > 160) gesture++; // jeda = gestur baru (inersia trackpad = gestur yang sama)
+        // Gestur baru: ada jeda, ATAU dorongan baru (delta membesar lagi). Inersia trackpad selalu mengecil,
+        // jadi hanya sisa inersia yang tertahan — dorongan baru langsung jalan tanpa menunggu inersia habis.
+        const mag = Math.abs(data.deltaY);
+        if (now - lastWheel > 160 || mag > lastMag * 1.25 + 4) gesture++;
         lastWheel = now;
+        lastMag = mag;
       }
       const el = root.current;
       if ((e as WheelEvent).ctrlKey || data.deltaY === 0 || !lenis || !el) return true;
@@ -129,7 +133,7 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
       return true;
     };
 
-    // Berhenti di tengah perjalanan → lengkapi ke tepi zona tahan terdekat. Di antara meja & footer →
+    // Berhenti di tengah perjalanan → lengkapi ke tepi zona tahan searah gerakan. Di antara meja & footer →
     // lengkapi ke salah satunya.
     const onScroll = () => {
       window.clearTimeout(timer);
@@ -145,11 +149,14 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
         }
         const d = driveOf(y, g);
         if (d.hold >= 0) return;
+        // Lengkapi searah gerakan terakhir (scroll pendek tetap maju/mundur satu section, tidak ditarik
+        // balik); hanya gerak sangat kecil (kemungkinan tak sengaja) yang dikembalikan.
         const k = Math.floor(d.current);
         const t = d.current - k;
-        const to = t > 0.5 ? zone(g, k + 1)[0] + 1 : zone(g, k)[1] - 1;
-        lenis.scrollTo(to, { duration: 0.7 });
-      }, 260);
+        const forward = lenis.direction >= 0 ? t > 0.12 : t > 0.88;
+        const to = forward ? zone(g, k + 1)[0] + 1 : zone(g, k)[1] - 1;
+        lenis.scrollTo(to, { duration: 0.55 });
+      }, 380);
     };
 
     const attach = window.setInterval(() => {

@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import type Lenis from "lenis";
-import { PerformanceMonitor, useProgress } from "@react-three/drei";
+import { useProgress } from "@react-three/drei";
 import { Stage } from "../Stage";
 import { StopDots } from "../ui";
 import { useStops } from "../useScrollProgress";
@@ -18,9 +18,13 @@ import { SeoContent } from "./SeoContent";
 import { DeskFooter } from "./Footer";
 import { Logo } from "./Logo";
 import { ScrollHint } from "./ScrollHint";
+import { RenderLoop } from "./RenderLoop";
 import { QUALITY, detectTier, lowerTier, type Tier } from "./quality";
 
 const N = DESK_STOPS.length;
+const FARM = deskIndex("farmagent");
+/** Layar HP di rak FarmAgent terus menggulir selama perhentian itu terlihat. */
+const farmBusy = (v: number) => v > FARM - 0.5 && v < FARM + 0.8;
 const clampInt = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
 // Tier perangkat dideteksi sekali di klien (null saat render server).
@@ -57,6 +61,7 @@ export function DeskProto() {
   };
   const openFooter = () => lenisOf()?.scrollTo(bounds().max, { duration: 1.2 });
   const [ready, setReady] = useState(false);
+  const { active: loading } = useProgress();
   const { base, tier, decline } = useTier();
   const q = tier ? QUALITY[tier] : null;
 
@@ -179,9 +184,10 @@ export function DeskProto() {
             toneMapping={THREE.NeutralToneMapping /* warna lebih natural & dalam daripada ACES */}
             exposure={0.9}
             envIntensity={0.5}
+            frameloop="demand"
           >
-            {/* FPS rata-rata terlalu rendah beberapa kali berturut-turut → turunkan tier (maks. dua kali). */}
-            {ready && <PerformanceMonitor flipflops={3} bounds={() => [36, 58]} onDecline={decline} />}
+            {/* Render hanya saat ada perubahan; FPS rata-rata terlalu rendah → turunkan tier (maks. dua kali). */}
+            <RenderLoop f={f} busy={farmBusy} measure={ready && !loading} onDecline={decline} pokeKey={`${lang}:${tier}:${ready}:${loading}`} />
             <DeskScene f={f} copy={copy} quality={q} onReady={() => setReady(true)} onPhone={openFooter} />
           </Stage>
         )}
@@ -217,29 +223,49 @@ function Loader({ label, ready }: { label: string; ready: boolean }) {
   const { active, progress } = useProgress();
   const [gone, setGone] = useState(false);
   const [shown, setShown] = useState(0);
+  const shownRef = useRef(0);
   // Hilang hanya setelah adegan benar-benar ter-render (ready) dan tidak ada unduhan aktif.
   const idle = ready && !active;
   // Unduhan = 0–90%, menyiapkan adegan (font, tekstur, shader) = 90–100%. Angka naik halus, tidak loncat.
   const target = idle ? 100 : Math.min(90, progress * 0.9);
   useEffect(() => {
     let raf = 0;
+    let v = shownRef.current;
     const tick = () => {
-      setShown((v) => (Math.abs(target - v) < 0.4 ? target : v + (target - v) * 0.08));
-      raf = requestAnimationFrame(tick);
+      v = Math.abs(target - v) < 0.4 ? target : v + (target - v) * 0.08;
+      shownRef.current = v;
+      setShown(v);
+      if (v !== target) raf = requestAnimationFrame(tick); // berhenti setelah sampai target
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [target]);
-  useEffect(() => {
-    if (!idle || shown < 99.5) return;
-    const t = window.setTimeout(() => setGone(true), 700);
-    return () => window.clearTimeout(t);
-  }, [idle, shown]);
-  if (gone) return null;
   const done = idle && shown >= 99.5;
+  const cloud = useRef<HTMLCanvasElement>(null);
+  const [dissolving, setDissolving] = useState<false | "cloud" | "fade">(false);
+  // Selesai → latar krem "terurai" seperti awan: gumpalan lembut terbuka dari tengah ke tepi.
+  useEffect(() => {
+    if (!done) return;
+    const c = cloud.current;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!c || reduce) {
+      setDissolving("fade");
+      const t = window.setTimeout(() => setGone(true), 500);
+      return () => window.clearTimeout(t);
+    }
+    const stop = cloudDissolve(c, 1700, () => setGone(true));
+    setDissolving("cloud");
+    return stop;
+  }, [done]);
+  if (gone) return null;
   return (
-    <div className={`fixed inset-0 z-50 grid place-items-center bg-cream transition-opacity duration-500 ${done ? "opacity-0" : "opacity-100"}`}>
-      <div className="flex flex-col items-center text-center">
+    <div
+      className={`fixed inset-0 z-50 grid place-items-center ${dissolving ? "pointer-events-none" : "bg-cream"} ${dissolving === "fade" ? "opacity-0 transition-opacity duration-500" : ""}`}
+    >
+      <canvas ref={cloud} aria-hidden className="absolute inset-0 size-full" />
+      <div
+        className={`relative flex flex-col items-center text-center transition-[opacity,transform,filter] duration-500 ease-out ${dissolving ? "scale-110 opacity-0 blur-sm" : ""}`}
+      >
         <Logo size={112} fill={shown / 100} className="drop-shadow-[0_18px_30px_rgba(30,27,24,0.18)]" />
         <p className="mt-6 font-display text-5xl leading-none tabular-nums">
           {Math.round(shown)}
@@ -249,4 +275,72 @@ function Loader({ label, ready }: { label: string; ready: boolean }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Latar krem pemuat terurai seperti awan: kanvas diisi krem, lalu puluhan gumpalan lembut (gradasi radial)
+ * "dihapus" dan membesar bertahap dari tengah ke tepi, dengan tepi gumpalan sedikit lebih terang
+ * (kesan volume awan). Kanvas digambar ulang tiap frame selama `ms`, lalu `onEnd`.
+ */
+function cloudDissolve(c: HTMLCanvasElement, ms: number, onEnd: () => void) {
+  const dpr = Math.min(1.5, window.devicePixelRatio || 1); // gradasi lembut tidak butuh resolusi penuh
+  const W = window.innerWidth, H = window.innerHeight;
+  c.width = Math.round(W * dpr);
+  c.height = Math.round(H * dpr);
+  const ctx = c.getContext("2d")!;
+  ctx.scale(dpr, dpr);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const big = Math.max(W, H);
+  const step = big / 7;
+  const puffs: { x: number; y: number; r: number; delay: number }[] = [];
+  for (let y = -step / 2; y < H + step; y += step * 0.8)
+    for (let x = -step / 2; x < W + step; x += step * 0.8) {
+      const px = x + (rnd() - 0.5) * step * 0.7, py = y + (rnd() - 0.5) * step * 0.7;
+      const d = Math.hypot(px - W / 2, py - H / 2) / Math.hypot(W / 2, H / 2);
+      puffs.push({ x: px, y: py, r: step * (0.9 + rnd() * 0.6), delay: d * 0.5 + rnd() * 0.14 });
+    }
+  const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+  const t0 = performance.now();
+  let raf = 0;
+  const frame = (now: number) => {
+    const T = (now - t0) / ms;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.clearRect(0, 0, W, H);
+    if (T >= 1) return onEnd();
+    ctx.fillStyle = "#f2ebe1";
+    ctx.fillRect(0, 0, W, H);
+    const grow = puffs.map((p) => ({ p, k: ease(Math.min(1, Math.max(0, (T - p.delay) / 0.42))) })).filter((g) => g.k > 0);
+    // Tepi awan sedikit terang
+    for (const { p, k } of grow) {
+      const r = p.r * k * 1.25;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      g.addColorStop(0.55, "rgba(255,255,255,0)");
+      g.addColorStop(0.8, `rgba(255,255,255,${0.4 * (1 - T)})`);
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+    }
+    // Inti gumpalan menghapus krem → adegan terlihat dari baliknya
+    ctx.globalCompositeOperation = "destination-out";
+    for (const { p, k } of grow) {
+      const r = p.r * k;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      g.addColorStop(0, "rgba(0,0,0,1)");
+      g.addColorStop(0.5, "rgba(0,0,0,0.9)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+    }
+    // Sisa tipis memudar total di akhir
+    if (T > 0.75) {
+      ctx.fillStyle = `rgba(0,0,0,${(T - 0.75) / 0.25})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    raf = requestAnimationFrame(frame);
+  };
+  // Frame pertama digambar sinkron supaya tidak ada kedip saat latar div dilepas.
+  frame(t0);
+  raf = requestAnimationFrame(frame);
+  return () => cancelAnimationFrame(raf);
 }

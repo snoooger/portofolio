@@ -2,23 +2,22 @@
 
 // Konsep meja (lanjutan P1): satu meja kerja nyata dilihat dari atas, kamera miring 3/4 ke benda
 // yang berdiri. Semua penjelasan tertulis tangan di post-it. Benda bergerak hanya karena scroll.
-import { useEffect, useMemo, useRef } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RoundedBox, SoftShadows, useGLTF, useTexture } from "@react-three/drei";
-import { EffectComposer, Bloom, SSAO, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { P } from "../palette";
 import { matTexture, plainPaperTexture } from "../textures";
 import { stopMix } from "../useScrollProgress";
 import { Pencil, Sheet } from "../objects/DeskProps";
 import { Asset, MODELS } from "../hd/Asset";
-import { useFonts } from "../final/useFonts";
+import { useFonts, type Fonts } from "../final/useFonts";
 import { PLATE, PhoneFarmRack, RACK } from "./PhoneFarmRack";
 import { HD, Model, type Fit } from "./Model";
 import { Workstation } from "./Workstation";
-import { INKS, TOOLS, heroPaper, jobCard, postIt, statsNote, toolNote, type HandFamilies, type NoteStyle } from "./paper";
+import { INKS, TOOLS, calendarPage, eduNote, heroPaper, jobCard, postIt, statsNote, toolNote, type HandFamilies, type NoteStyle } from "./paper";
 import { useHands } from "./useHands";
-import { BOARD_Y, DESK, DESK_STOPS, SPOT, TOP, WALL_Z, deskIndex } from "./stops";
+import { BOARD_Y, DESK, DESK_STOPS, SPOT, TOP, WALL_Z, deskIndex, poseOf, spanOf } from "./stops";
 import { IPhone } from "./IPhone";
 import type { Copy, Note } from "./copy";
 import type { Drive } from "../objects/types";
@@ -58,7 +57,6 @@ const STYLE: Record<string, NoteStyle> = {
   skill1: { hand: "kalam", ink: INKS.blue, paper: "grid", deco: "circle", bullets: "dash" },
   skill2: { hand: "gochi", ink: INKS.red, paper: "lined", deco: "highlight", bullets: "check" },
   certificates: { hand: "caveat", paper: "dots", deco: "circle", doodle: "star" },
-  education: { hand: "kalam", ink: INKS.green, paper: "grid", deco: "box" },
 };
 
 const PEG_FIT: Fit = { axis: "z", size: 2.2 };
@@ -144,6 +142,61 @@ function ToolPostIt({ tool, hands, size = 0.12, ...props }: { tool: (typeof TOOL
         <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
       </mesh>
       <Tape w={size * 0.45} rot={[-0.08, 0.06, -0.03, 0.07, -0.05, 0.04][TOOLS.indexOf(tool)]} position={[0, size / 2 - size * 0.02, 0.0012]} />
+    </group>
+  );
+}
+
+/** Post-it pendidikan: coretan logo IT PLN + IPK, diselotip langsung ke dinding. */
+function EduPostIt({ copy, hands, size = 0.18, ...props }: { copy: Copy; hands: HandFamilies; size?: number; position: [number, number, number]; rotation?: [number, number, number] }) {
+  const t = useMemo(() => eduNote(copy.education, hands), [copy, hands]);
+  useEffect(() => () => t.dispose(), [t]);
+  const color = copy.education.color ?? "#BFD7E6";
+  return (
+    <group {...props}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[size, size, 0.0008]} />
+        {[0, 1, 2, 3, 5].map((i) => (
+          <meshStandardMaterial key={i} attach={`material-${i}`} color={color} />
+        ))}
+        <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
+      </mesh>
+      <Tape w={size * 0.42} rot={-0.06} position={[0, size / 2 - size * 0.02, 0.0012]} />
+    </group>
+  );
+}
+
+/** Sobekan kalender September 2026 di dinding, ditancap paku payung merah di tengah atas. */
+function CalendarPage({ copy, hands, fonts, w = 0.17, ...props }: { copy: Copy; hands: HandFamilies; fonts: Fonts; w?: number; position: [number, number, number]; rotation?: [number, number, number] }) {
+  const h = (w * 1800) / 1280;
+  const t = useMemo(() => calendarPage(fonts, hands, copy.calendar), [fonts, hands, copy]);
+  useEffect(() => () => t.dispose(), [t]);
+  const geo = useMemo(() => curledSheet(w, h, 4.2), [w, h]);
+  useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <group {...props}>
+      <mesh geometry={geo} castShadow receiveShadow>
+        <meshStandardMaterial
+          map={t}
+          alphaTest={0.5}
+          normalMap={PAPER?.normal ?? null}
+          normalScale={[0.25, 0.25]}
+          roughnessMap={PAPER?.rough ?? null}
+          roughness={0.95}
+          side={THREE.DoubleSide}
+          shadowSide={THREE.DoubleSide}
+        />
+      </mesh>
+      {/* Paku payung: kepala merah mengilap + tangkai */}
+      <group position={[0, h / 2 - h * 0.075, 0.004]}>
+        <mesh castShadow position={[0, 0, 0.004]}>
+          <sphereGeometry args={[0.0062, 24, 16]} />
+          <meshPhysicalMaterial color="#c4302b" roughness={0.25} clearcoat={0.8} clearcoatRoughness={0.15} />
+        </mesh>
+        <mesh castShadow rotation-x={Math.PI / 2} position={[0, 0, -0.0005]}>
+          <cylinderGeometry args={[0.0052, 0.0052, 0.004, 24]} />
+          <meshPhysicalMaterial color="#c4302b" roughness={0.3} clearcoat={0.6} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -331,8 +384,15 @@ function ShadowBake({ deps }: { deps: unknown[] }) {
     const sm = get().gl.shadowMap;
     sm.autoUpdate = false;
     sm.needsUpdate = true;
+    get().invalidate();
     // Ulangi beberapa kali: tekstur & geometri yang baru diunggah ke GPU bisa muncul satu-dua frame kemudian.
-    const ts = [200, 800, 2000, 4000].map((ms) => window.setTimeout(() => (get().gl.shadowMap.needsUpdate = true), ms));
+    // (frameloop "demand": minta satu frame agar bake benar-benar terjadi.)
+    const ts = [200, 800, 2000, 4000].map((ms) =>
+      window.setTimeout(() => {
+        get().gl.shadowMap.needsUpdate = true;
+        get().invalidate();
+      }, ms),
+    );
     return () => {
       ts.forEach(window.clearTimeout);
       get().gl.shadowMap.autoUpdate = true;
@@ -342,36 +402,8 @@ function ShadowBake({ deps }: { deps: unknown[] }) {
   return null;
 }
 
-/** Efek layar sesuai tier: AO + bloom + vignette (high), bloom (mid), tanpa post (low). */
-function Post({ mode }: { mode: Quality["post"] }) {
-  if (mode === "none") return null;
-  if (mode === "bloom")
-    return (
-      <EffectComposer multisampling={0}>
-        <Bloom mipmapBlur luminanceThreshold={0.92} luminanceSmoothing={0.2} intensity={0.3} />
-      </EffectComposer>
-    );
-  return (
-    <EffectComposer multisampling={4} enableNormalPass>
-      {/* Ambient occlusion: sudut & sela antar benda menggelap halus (skala meja, satuan meter) */}
-      <SSAO
-        samples={16}
-        rings={5}
-        radius={0.05}
-        intensity={14}
-        luminanceInfluence={0.6}
-        bias={0.02}
-        worldDistanceThreshold={3}
-        worldDistanceFalloff={1}
-        worldProximityThreshold={0.03}
-        worldProximityFalloff={0.02}
-        color="#2a1d12"
-      />
-      <Bloom mipmapBlur luminanceThreshold={0.92} luminanceSmoothing={0.2} intensity={0.3} />
-      <Vignette offset={0.3} darkness={0.35} />
-    </EffectComposer>
-  );
-}
+// Post-processing dimuat terpisah hanya bila tier memakainya (HP & laptop biasa tidak mengunduhnya).
+const Post = lazy(() => import("./Post").then((m) => ({ default: m.Post })));
 
 export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive; copy: Copy; quality: Quality; onReady?: () => void; onPhone?: () => void }) {
   const fonts = useFonts();
@@ -419,7 +451,11 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
   const noteIdx = useRef(0);
   const galleryScroll = useRef(0);
   const look = useRef(new THREE.Vector3(...DESK_STOPS[0].look));
-  const vecs = useMemo(() => DESK_STOPS.map((s) => ({ p: new THREE.Vector3(...s.pos), l: new THREE.Vector3(...s.look) })), []);
+  // Pose tiap perhentian untuk layar lebar [0] dan potret [1].
+  const vecs = useMemo(
+    () => [2, 0.5].map((asp) => DESK_STOPS.map((s) => ({ p: new THREE.Vector3(...poseOf(s, asp).pos), l: new THREE.Vector3(...poseOf(s, asp).look) }))),
+    [],
+  );
   const tmp = useRef({ p: new THREE.Vector3(), l: new THREE.Vector3() });
   const tmpAxes = useRef(makeAxes());
   const I = { farm: deskIndex("farmagent"), sonar: deskIndex("sonar"), ps: deskIndex("promptedsite"), sec: deskIndex("security") };
@@ -429,10 +465,12 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
     const { camera, pointer } = state;
     const { a, b, t } = stopMix(v, DESK_STOPS.length, 0.3);
     const { p, l } = tmp.current;
-    p.lerpVectors(vecs[a].p, vecs[b].p, t);
-    l.lerpVectors(vecs[a].l, vecs[b].l, t);
+    const V = vecs[(camera as THREE.PerspectiveCamera).aspect < 1 ? 1 : 0];
+    p.lerpVectors(V[a].p, V[b].p, t);
+    l.lerpVectors(V[a].l, V[b].l, t);
     const A = DESK_STOPS[a], B = DESK_STOPS[b];
-    const span = THREE.MathUtils.lerp(A.span, B.span, t);
+    const asp = (camera as THREE.PerspectiveCamera).aspect;
+    const span = THREE.MathUtils.lerp(spanOf(A, asp), spanOf(B, asp), t);
     const side = THREE.MathUtils.lerp(A.text?.side ?? 0, B.text?.side ?? 0, t);
     const text = THREE.MathUtils.lerp(A.text ? 1 : 0, B.text ? 1 : 0, t);
     const cam = camera as THREE.PerspectiveCamera;
@@ -642,7 +680,10 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
       <GradCorner position={[1.56, BY + 0.02, WALL_Z]} />
       {/* Post-it pendidikan ditempel langsung di dinding, di tengah sudut kelulusan */}
       {hands && (
-        <PostIt note={copy.education} hands={hands} style={STYLE.education} size={0.18} tape position={[1.56, BY - 0.01, WALL_Z + 0.002]} rotation={[0, 0, 0.025]} />
+        <>
+          <EduPostIt copy={copy} hands={hands} position={[1.58, BY - 0.01, WALL_Z + 0.002]} rotation={[0, 0, 0.025]} />
+          {fonts && <CalendarPage copy={copy} hands={hands} fonts={fonts} position={[1.355, BY - 0.025, WALL_Z + 0.0015]} rotation={[0, 0, -0.03]} />}
+        </>
       )}
 
       {/* Penjelasan tiap perhentian: teks 3D melayang di sisi kosong bingkai */}
@@ -666,7 +707,11 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
         );
       })()}
       <ShadowBake deps={[q.tier, !!fonts, !!hands, copy]} />
-      <Post mode={q.post} />
+      {q.post !== "none" && (
+        <Suspense fallback={null}>
+          <Post mode={q.post} />
+        </Suspense>
+      )}
     </>
   );
 }

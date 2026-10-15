@@ -25,6 +25,7 @@ const en = {
   role: "Fullstack Developer & AI Automation Engineer",
   loading: "Setting up the desk",
   scroll: { hint: "Scroll to explore", touch: "Swipe up to explore" },
+  calendar: { note: "Graduated!", days: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] },
   /** Kertas hero & layar pemuatan: "Portfolio" + nama lengkap. */
   portfolio: "Portfolio",
   about: [
@@ -124,6 +125,7 @@ const id: typeof en = {
   role: "Fullstack Developer & AI Automation Engineer",
   loading: "Menyiapkan meja",
   scroll: { hint: "Scroll untuk menjelajah", touch: "Geser ke atas" },
+  calendar: { note: "Lulus!", days: ["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"] },
   portfolio: "Portofolio",
   about: [
     { title: "End to end", lines: ["Membangun & merilis produk", "sendiri: API, backend, frontend,", "AI agent, pembayaran, deploy."], color: YELLOW },

@@ -12,7 +12,7 @@ import * as THREE from "three";
 import type { Drive } from "../objects/types";
 import type { Copy } from "./copy";
 import { summaryFor, type Card } from "./content";
-import { DESK_STOPS, type DeskStop } from "./stops";
+import { DESK_STOPS, poseOf, spanOf, type DeskStop } from "./stops";
 import { OBJECT_FRAC, applyFraming, makeAxes } from "./frame";
 
 const FONT = {
@@ -126,10 +126,11 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
   const portrait = aspect < 1;
   // Jangkar & orientasi dihitung dari pose akhir kamera di perhentian (sama persis dengan DeskScene).
   const frame = useMemo(() => {
-    const p = new THREE.Vector3(...stop.pos);
-    const l = new THREE.Vector3(...stop.look);
+    const pose = poseOf(stop, aspect);
+    const p = new THREE.Vector3(...pose.pos);
+    const l = new THREE.Vector3(...pose.look);
     const ax = makeAxes();
-    const fov = applyFraming(p, l, stop.span, stop.text!.side, 1, aspect, ax);
+    const fov = applyFraming(p, l, spanOf(stop, aspect), stop.text!.side, 1, aspect, ax);
     const D = Math.min(0.42, p.distanceTo(l) * 0.55);
     const halfH = D * Math.tan(THREE.MathUtils.degToRad(fov / 2));
     const side = stop.text!.side;
@@ -156,13 +157,16 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
   const refs = useRef<(THREE.Group | null)[]>([]);
   const ctaFade = useRef(0);
 
-  useFrame(() => {
+  useFrame((_, dt) => {
     let y = 0;
     const d = f.current - k;
     if (scrimMat.current) {
-      const a = sstep(d, -0.55, -0.22), b = sstep(d, 0.22, 0.5);
-      scrimMat.current.opacity = a * (1 - b);
-      scrimMat.current.visible = scrimMat.current.opacity > 0.01;
+      // Gradasi baru muncul setelah kamera benar-benar berhenti di perhentian ini (scroll sudah "terkunci"),
+      // dan langsung memudar begitu mulai berpindah — tidak ikut terbang bersama teks.
+      const m = scrimMat.current;
+      const settled = Math.abs(d) < 0.015;
+      m.opacity = THREE.MathUtils.damp(m.opacity, settled ? 1 : 0, settled ? 5 : 14, dt);
+      m.visible = m.opacity > 0.01;
     }
     refs.current.forEach((g, i) => {
       if (!g) return;

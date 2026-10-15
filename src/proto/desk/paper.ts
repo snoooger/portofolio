@@ -928,3 +928,237 @@ export function toolNote(tool: (typeof TOOLS)[number], hands: HandFamilies, w = 
   scribble(ctx, [[(w - tw) / 2 - 6, 452], [(w + tw) / 2 + 8, 446]], "#a4271c", 5, false, s + 9);
   return tex(c);
 }
+
+/** Titik-titik di sepanjang kurva kuadratik (untuk coretan melengkung). */
+const qPts = (a: [number, number], c: [number, number], b: [number, number], n = 10): [number, number][] =>
+  Array.from({ length: n + 1 }, (_, i) => {
+    const t = i / n, u = 1 - t;
+    return [u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]];
+  });
+
+/**
+ * Coretan logo Institut Teknologi PLN: dua "sayap" bergaris (kiri biru tua, kanan biru muda) yang
+ * melengkung masuk ke batang pena di tengah, berujung mata pena.
+ */
+function itplnDoodle(ctx: CanvasRenderingContext2D, cx: number, ty: number, k = 1) {
+  const DARK = "#1b5d78", LIGHT = "#2aa3bd";
+  const X = (s: number, d: number) => cx + s * d * k;
+  const Y = (d: number) => ty + d * k;
+  const r = rng(77);
+  /** Goresan krayon rapi: satu garis tebal + dua lapis tipis bergeser sedikit (tekstur krayon). */
+  const line = (pts: [number, number][], color: string, width: number) => {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineCap = ctx.lineJoin = "round";
+    [[0, 0, 1, 0.92], [1.6, -1.2, 0.55, 0.45], [-1.4, 1.5, 0.45, 0.4]].forEach(([dx, dy, wk, a]) => {
+      ctx.globalAlpha = a;
+      ctx.lineWidth = width * wk;
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => {
+        const jx = dx + (r() - 0.5) * 1.6, jy = dy + (r() - 0.5) * 1.6;
+        if (i) ctx.lineTo(x + jx, y + jy);
+        else ctx.moveTo(x + jx, y + jy);
+      });
+      ctx.stroke();
+    });
+    ctx.restore();
+  };
+  const stemTop = 330, tip = 428;
+  for (const s of [-1, 1]) {
+    const col = s < 0 ? DARK : LIGHT;
+    for (let i = 0; i < 4; i++) {
+      const y = 46 + i * 62;
+      const inner = 20 + i * 0;
+      line(
+        [
+          [X(s, 186), Y(y - 40)],
+          ...qPts([X(s, 186), Y(y - 12)], [X(s, 186), Y(y)], [X(s, 172), Y(y)], 4),
+          ...qPts([X(s, 172), Y(y)], [X(s, 120), Y(y)], [X(s, 78), Y(y)], 2),
+          ...qPts([X(s, 78), Y(y)], [X(s, inner), Y(y)], [X(s, inner), Y(y + 64)], 10),
+          [X(s, inner), Y(Math.max(y + 64, stemTop - (3 - i) * 4))],
+        ],
+        col,
+        15 * k,
+      );
+    }
+    // Batang pena turun ke mata pena
+    line([[X(s, 20), Y(stemTop - 60)], [X(s, 20), Y(stemTop + 40)], [cx, Y(tip)]], col, 15 * k);
+  }
+  line([[cx, Y(stemTop + 48)], [cx, Y(stemTop + 78)]], DARK, 6 * k);
+}
+
+/** Post-it pendidikan: coretan logo kampus + IPK (tanggal lulus ada di sobekan kalender di sebelahnya). */
+export function eduNote(note: Note, hands: HandFamilies, w = 768, h = 768) {
+  const { c, ctx } = canvas(w, h);
+  ctx.fillStyle = note.color ?? "#BFD7E6";
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = "rgba(40,60,90,0.13)";
+  ctx.lineWidth = 2;
+  for (let y = 0; y < h; y += h * 0.06) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  for (let x = 0; x < w; x += w * 0.06) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  const top = ctx.createLinearGradient(0, 0, 0, h * 0.16);
+  top.addColorStop(0, "rgba(0,0,0,0.08)");
+  top.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = top;
+  ctx.fillRect(0, 0, w, h * 0.16);
+  const bot = ctx.createLinearGradient(w, h, w * 0.6, h * 0.6);
+  bot.addColorStop(0, "rgba(0,0,0,0.12)");
+  bot.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = bot;
+  ctx.fillRect(0, 0, w, h);
+
+  itplnDoodle(ctx, w / 2, 70, 1);
+  // "IT PLN" kecil di bawah logo
+  ctx.fillStyle = "#1b5d78";
+  ctx.font = `400 46px ${hands.marker}`;
+  ctx.textAlign = "center";
+  ctx.fillText("IT PLN", w / 2, 556);
+  // IPK
+  let px = 96;
+  ctx.font = `700 ${px}px ${hands.kalam}`;
+  while (ctx.measureText(note.title).width > w - 100 && px > 40) ctx.font = `700 ${--px}px ${hands.kalam}`;
+  const tw = ctx.measureText(note.title).width;
+  ctx.fillStyle = INKS.green;
+  ctx.fillText(note.title, w / 2, 682);
+  ctx.textAlign = "left";
+  scribble(ctx, [[w / 2 - tw / 2, 708], [w / 2, 700], [w / 2 + tw / 2 + 6, 704]], "#c2552f", 7, false, 99);
+  return tex(c);
+}
+
+/**
+ * Sobekan kalender dinding (September 2026, bulan kelulusan): tepi atas robek dari blok kalender,
+ * bulan besar bergaya serif, kisi tanggal, dan coretan spidol merah "Graduated!". Kanvas besar (HD)
+ * dengan alfa di luar kertas supaya robekan terlihat nyata.
+ */
+export function calendarPage(
+  f: { serif: string; sans: string; mono: string },
+  hands: HandFamilies,
+  t: { note: string; days: string[] },
+  year = 2026,
+  month = 8,
+  w = 1280,
+  h = 1800,
+) {
+  const { c, ctx } = canvas(w, h);
+  const r = rng(year * 13 + month);
+  const GREEN = "#1d3a2b", TERRA = "#c2552f", INKC = "#26231f";
+
+  // Bentuk kertas: tepi atas robek tidak rata (bekas perforasi), sisi & bawah lurus dengan sudut kecil.
+  const edge: [number, number][] = [];
+  for (let x = 0; x <= w; x += 10) {
+    const big = Math.sin(x * 0.011 + 1.3) * 9 + Math.sin(x * 0.031) * 5;
+    edge.push([x, 74 + big + (r() - 0.5) * 12]);
+  }
+  const paper = new Path2D();
+  paper.moveTo(0, edge[0][1]);
+  edge.forEach(([x, y]) => paper.lineTo(x, y));
+  paper.lineTo(w, h - 18);
+  paper.quadraticCurveTo(w, h, w - 18, h);
+  paper.lineTo(18, h);
+  paper.quadraticCurveTo(0, h, 0, h - 18);
+  paper.closePath();
+  ctx.save();
+  ctx.clip(paper);
+  ctx.fillStyle = "#fbf6ea";
+  ctx.fillRect(0, 0, w, h);
+  // Serat kertas
+  for (let i = 0; i < 9000; i++) {
+    ctx.fillStyle = r() < 0.5 ? "rgba(60,40,20,0.035)" : "rgba(255,255,255,0.5)";
+    ctx.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2);
+  }
+  // Serat robekan: pita tipis lebih gelap & sedikit abu di sepanjang tepi atas
+  ctx.strokeStyle = "rgba(120,100,70,0.28)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  edge.forEach(([x, y], i) => (i ? ctx.lineTo(x, y + 3) : ctx.moveTo(x, y + 3)));
+  ctx.stroke();
+  for (let x = 30; x < w; x += 54) {
+    ctx.fillStyle = "rgba(120,100,70,0.12)";
+    ctx.beginPath();
+    ctx.arc(x, 64, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const L = 96, R = w - 96;
+  // Tahun & bulan
+  ctx.fillStyle = TERRA;
+  ctx.font = `800 84px ${f.sans}`;
+  ctx.fillText(String(year), L, 250);
+  ctx.fillStyle = GREEN;
+  ctx.font = `400 236px ${f.serif}`;
+  const monthName = new Date(year, month, 1).toLocaleString("en-US", { month: "long" });
+  ctx.fillText(monthName, L - 8, 470);
+  ctx.fillStyle = "rgba(29,58,43,0.85)";
+  ctx.fillRect(L, 530, R - L, 5);
+
+  // Hari
+  const cols = 7, cw = (R - L) / cols;
+  ctx.font = `600 34px ${f.mono}`;
+  t.days.forEach((d, i) => {
+    ctx.fillStyle = i === 6 ? TERRA : "rgba(38,35,31,0.6)";
+    ctx.fillText(d, L + i * cw + 14, 600);
+  });
+
+  // Kisi tanggal (Senin pertama)
+  const first = (new Date(year, month, 1).getDay() + 6) % 7;
+  const count = new Date(year, month + 1, 0).getDate();
+  const prevCount = new Date(year, month, 0).getDate();
+  const rows = Math.ceil((first + count) / 7);
+  const gy = 636, rh = (h - 120 - gy) / rows;
+  ctx.strokeStyle = "rgba(38,35,31,0.14)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i <= rows; i++) {
+    ctx.beginPath();
+    ctx.moveTo(L, gy + i * rh);
+    ctx.lineTo(R, gy + i * rh);
+    ctx.stroke();
+  }
+  for (let i = 1; i < cols; i++) {
+    ctx.beginPath();
+    ctx.moveTo(L + i * cw, gy);
+    ctx.lineTo(L + i * cw, gy + rows * rh);
+    ctx.stroke();
+  }
+  ctx.font = `700 64px ${f.sans}`;
+  for (let cell = 0; cell < rows * 7; cell++) {
+    const d = cell - first + 1;
+    const out = d < 1 || d > count;
+    const n = d < 1 ? prevCount + d : d > count ? d - count : d;
+    const col = cell % 7;
+    ctx.fillStyle = out ? "rgba(38,35,31,0.18)" : col === 6 ? TERRA : INKC;
+    ctx.fillText(String(n), L + col * cw + 16, gy + Math.floor(cell / 7) * rh + 76);
+  }
+
+  // Coretan spidol: "Graduated!" + panah ke nama bulan + bintang
+  ctx.save();
+  ctx.translate(R - 20, 236);
+  ctx.rotate(-0.1);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#b3261e";
+  ctx.font = `400 96px ${hands.marker}`;
+  ctx.fillText(t.note, 0, 0);
+  ctx.restore();
+  // Panah melengkung dari tulisan turun ke ujung nama bulan (tidak menimpa huruf)
+  ctx.font = `400 236px ${f.serif}`;
+  const mEnd = L - 8 + ctx.measureText(monthName).width;
+  scribble(ctx, qPts([R - 40, 290], [R - 10, 400], [mEnd + 40, 420], 10), "#b3261e", 9, false, 3);
+  scribble(ctx, [[mEnd + 78, 392], [mEnd + 38, 420], [mEnd + 76, 448]], "#b3261e", 9, false, 4);
+  const star: [number, number][] = [];
+  for (let i = 0; i < 11; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5, rr2 = i % 2 ? 18 : 42;
+    star.push([L + 300 + Math.cos(a) * rr2, 200 + Math.sin(a) * rr2]);
+  }
+  scribble(ctx, star, "#e0a21a", 8, false, 5);
+
+  // Bayangan halus: lengkung bawah & tepi
+  const sh = ctx.createLinearGradient(0, h * 0.7, 0, h);
+  sh.addColorStop(0, "rgba(0,0,0,0)");
+  sh.addColorStop(1, "rgba(0,0,0,0.07)");
+  ctx.fillStyle = sh;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+
+  const out = tex(c);
+  out.anisotropy = 16;
+  return out;
+}

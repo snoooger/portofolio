@@ -17,6 +17,7 @@ import { DeskHeader } from "./Header";
 import { SeoContent } from "./SeoContent";
 import { DeskFooter } from "./Footer";
 import { Logo } from "./Logo";
+import { ScrollHint } from "./ScrollHint";
 import { QUALITY, detectTier, lowerTier, type Tier } from "./quality";
 
 const N = DESK_STOPS.length;
@@ -202,6 +203,7 @@ export function DeskProto() {
       <DeskHeader f={f} count={N} copy={copy} lang={lang} setLang={setLang} goTo={goTo} />
 
       <StopDots f={f} count={N} />
+      <ScrollHint f={f} count={N} label={copy.scroll.hint} touchLabel={copy.scroll.touch} enabled={ready} />
     </main>
     {/* Ruang scroll untuk membuka footer di bawah "kertas" */}
     <div aria-hidden style={{ height: "100svh" }} />

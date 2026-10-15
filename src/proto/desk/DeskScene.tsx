@@ -16,7 +16,7 @@ import { useFonts } from "../final/useFonts";
 import { PLATE, PhoneFarmRack, RACK } from "./PhoneFarmRack";
 import { HD, Model, type Fit } from "./Model";
 import { Workstation } from "./Workstation";
-import { INKS, heroPaper, jobCard, postIt, statsNote, type HandFamilies, type NoteStyle } from "./paper";
+import { INKS, TOOLS, heroPaper, jobCard, postIt, statsNote, toolNote, type HandFamilies, type NoteStyle } from "./paper";
 import { useHands } from "./useHands";
 import { BOARD_Y, DESK, DESK_STOPS, SPOT, TOP, WALL_Z, deskIndex } from "./stops";
 import { IPhone } from "./IPhone";
@@ -57,7 +57,6 @@ const STYLE: Record<string, NoteStyle> = {
   skill0: { hand: "marker", deco: "underline", bullets: "none" },
   skill1: { hand: "kalam", ink: INKS.blue, paper: "grid", deco: "circle", bullets: "dash" },
   skill2: { hand: "gochi", ink: INKS.red, paper: "lined", deco: "highlight", bullets: "check" },
-  experience: { hand: "patrick", ink: INKS.blue, deco: "underline", doodle: "arrow" },
   certificates: { hand: "caveat", paper: "dots", deco: "circle", doodle: "star" },
   education: { hand: "kalam", ink: INKS.green, paper: "grid", deco: "box" },
 };
@@ -127,6 +126,24 @@ function StatsPostIt({ copy, hands, size = 0.19, ...props }: { copy: Copy; hands
         <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
       </mesh>
       <Tape w={size * 0.42} rot={0.05} position={[0, size / 2 - size * 0.02, 0.0012]} />
+    </group>
+  );
+}
+
+/** Post-it kecil bergambar logo alat (Next.js, Supabase, Nmap, …), diselotip di pegboard. */
+function ToolPostIt({ tool, hands, size = 0.12, ...props }: { tool: (typeof TOOLS)[number]; hands: HandFamilies; size?: number; position: [number, number, number]; rotation?: [number, number, number] }) {
+  const t = useMemo(() => toolNote(tool, hands), [tool, hands]);
+  useEffect(() => () => t.dispose(), [t]);
+  return (
+    <group {...props}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[size, size, 0.0008]} />
+        {[0, 1, 2, 3, 5].map((i) => (
+          <meshStandardMaterial key={i} attach={`material-${i}`} color={tool.paper} />
+        ))}
+        <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
+      </mesh>
+      <Tape w={size * 0.45} rot={[-0.08, 0.06, -0.03, 0.07, -0.05, 0.04][TOOLS.indexOf(tool)]} position={[0, size / 2 - size * 0.02, 0.0012]} />
     </group>
   );
 }
@@ -608,7 +625,16 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
       )}
       {hands && (
         <group position={[0, 0, WALL_Z + 0.056]}>
-          <PostIt note={copy.experience} hands={hands} style={STYLE.experience} size={0.18} tape position={[-0.93, BY - 0.3, 0]} rotation={[0, 0, 0.03]} />
+          {/* Alat yang sering dipakai: 3×2 post-it logo di bawah kartu pengalaman */}
+          {TOOLS.map((tool, i) => (
+            <ToolPostIt
+              key={tool.id}
+              tool={tool}
+              hands={hands}
+              position={[-0.94 + (i % 3) * 0.2 + [0, 0.01, -0.006, 0.006, -0.01, 0.004][i], BY - 0.17 - Math.floor(i / 3) * 0.16, 0]}
+              rotation={[0, 0, [0.04, -0.03, 0.05, -0.05, 0.02, -0.04][i]]}
+            />
+          ))}
           <PostIt note={copy.certificates} hands={hands} style={STYLE.certificates} size={0.18} tape position={[0.85, BY + 0.27, 0]} rotation={[0, 0, -0.04]} />
         </group>
       )}

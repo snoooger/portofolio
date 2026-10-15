@@ -24,6 +24,7 @@ const en = {
   nav: { about: "About", work: "Work", skills: "Skills", experience: "Experience", contact: "Contact", concepts: "Concepts" },
   role: "Fullstack Developer & AI Automation Engineer",
   loading: "Setting up the desk",
+  scroll: { hint: "Scroll to explore", touch: "Swipe up to explore" },
   /** Kertas hero & layar pemuatan: "Portfolio" + nama lengkap. */
   portfolio: "Portfolio",
   about: [
@@ -122,6 +123,7 @@ const id: typeof en = {
   nav: { about: "Tentang", work: "Karya", skills: "Skill", experience: "Pengalaman", contact: "Kontak", concepts: "Konsep" },
   role: "Fullstack Developer & AI Automation Engineer",
   loading: "Menyiapkan meja",
+  scroll: { hint: "Scroll untuk menjelajah", touch: "Geser ke atas" },
   portfolio: "Portofolio",
   about: [
     { title: "End to end", lines: ["Membangun & merilis produk", "sendiri: API, backend, frontend,", "AI agent, pembayaran, deploy."], color: YELLOW },

@@ -780,3 +780,151 @@ export function statsNote(t: { title: string; views: string; viewsLabel: string;
   tex.anisotropy = 8;
   return tex;
 }
+
+export type Tool = "nextjs" | "supabase" | "python" | "nmap" | "burp" | "openclaw";
+export const TOOLS: { id: Tool; label: string; paper: string }[] = [
+  { id: "nextjs", label: "Next.js", paper: "#F6DD7A" },
+  { id: "supabase", label: "Supabase", paper: "#C9DDB0" },
+  { id: "python", label: "Python", paper: "#BFD7EA" },
+  { id: "nmap", label: "Nmap", paper: "#F4C2C2" },
+  { id: "burp", label: "Burp Suite", paper: "#FBE7C6" },
+  { id: "openclaw", label: "OpenClaw", paper: "#F6DD7A" },
+];
+
+/** Isi bentuk dengan arsiran krayon diagonal (di-clip ke jalur), lalu garis tepinya digores. */
+function crayonFill(ctx: CanvasRenderingContext2D, path: Path2D, color: string, box: [number, number, number, number], seed: number, dense = 9) {
+  const r = rng(seed * 53);
+  const [x, y, w, h] = box;
+  ctx.save();
+  ctx.clip(path);
+  ctx.strokeStyle = color;
+  ctx.lineCap = "round";
+  for (let pass = 0; pass < 2; pass++) {
+    ctx.globalAlpha = pass ? 0.55 : 0.85;
+    ctx.lineWidth = dense * (pass ? 0.8 : 1.15);
+    ctx.beginPath();
+    for (let i = -h; i < w + h; i += dense * 0.95) {
+      const o = pass * dense * 0.5;
+      ctx.moveTo(x + i + o + (r() - 0.5) * 4, y - 4);
+      ctx.lineTo(x + i + o - h + (r() - 0.5) * 4, y + h + 4);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+const poly = (pts: [number, number][]) => {
+  const p = new Path2D();
+  pts.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
+  p.closePath();
+  return p;
+};
+
+/** Post-it kecil bergambar logo alat (coretan krayon) + nama alat dengan tulisan tangan. */
+export function toolNote(tool: (typeof TOOLS)[number], hands: HandFamilies, w = 512, h = 512) {
+  const { c, ctx } = canvas(w, h);
+  ctx.fillStyle = tool.paper;
+  ctx.fillRect(0, 0, w, h);
+  const sh = ctx.createLinearGradient(0, 0, 0, 80);
+  sh.addColorStop(0, "rgba(0,0,0,0.08)");
+  sh.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = sh;
+  ctx.fillRect(0, 0, w, 80);
+  const bot = ctx.createLinearGradient(w, h, w * 0.6, h * 0.6);
+  bot.addColorStop(0, "rgba(0,0,0,0.1)");
+  bot.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = bot;
+  ctx.fillRect(0, 0, w, h);
+
+  const ink = INKS.marker;
+  const cx = w / 2, cy = 205;
+  const s = tool.id.length;
+  if (tool.id === "nextjs") {
+    const p = new Path2D();
+    p.arc(cx, cy, 120, 0, Math.PI * 2);
+    crayonFill(ctx, p, "#141414", [cx - 125, cy - 125, 250, 250], s, 8);
+    scribble(ctx, circlePts(cx, cy, 120, 120, 26), "#141414", 7, false, s);
+    scribble(ctx, [[cx - 48, cy + 58], [cx - 48, cy - 58], [cx + 52, cy + 78]], "#fbf3e3", 15, false, s + 1);
+    scribble(ctx, [[cx + 48, cy - 58], [cx + 48, cy + 20]], "#fbf3e3", 15, false, s + 2);
+  } else if (tool.id === "supabase") {
+    const pts: [number, number][] = [[cx + 30, cy - 135], [cx - 110, cy + 30], [cx - 5, cy + 30], [cx - 30, cy + 140], [cx + 110, cy - 30], [cx + 5, cy - 30]];
+    crayonFill(ctx, poly(pts), "#3ecf8e", [cx - 115, cy - 140, 230, 285], s, 9);
+    scribble(ctx, pts, "#1f7a4f", 7, true, s);
+  } else if (tool.id === "python") {
+    const blue = new Path2D(), yellow = new Path2D();
+    blue.roundRect(cx - 110, cy - 115, 150, 130, 34);
+    blue.roundRect(cx - 110, cy - 30, 100, 110, 30);
+    yellow.roundRect(cx - 40, cy - 15, 150, 130, 34);
+    yellow.roundRect(cx + 10, cy - 80, 100, 110, 30);
+    crayonFill(ctx, blue, "#3572a5", [cx - 115, cy - 120, 160, 205], s, 9);
+    crayonFill(ctx, yellow, "#f2c230", [cx - 45, cy - 85, 160, 205], s + 3, 9);
+    ctx.save();
+    ctx.lineWidth = 6;
+    ctx.lineJoin = "round";
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = "#24507a";
+    ctx.stroke(blue);
+    ctx.strokeStyle = "#a8860f";
+    ctx.stroke(yellow);
+    ctx.restore();
+    ctx.fillStyle = "#fbf3e3";
+    ctx.beginPath();
+    ctx.arc(cx - 72, cy - 82, 11, 0, Math.PI * 2);
+    ctx.arc(cx + 72, cy + 82, 11, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (tool.id === "nmap") {
+    // Mata (logo Nmap): kelopak almond, iris, pupil, garis pindai.
+    const lid: [number, number][] = [];
+    for (let i = 0; i <= 20; i++) { const t = i / 20; lid.push([cx - 140 + t * 280, cy - Math.sin(t * Math.PI) * 85]); }
+    for (let i = 1; i < 20; i++) { const t = 1 - i / 20; lid.push([cx - 140 + t * 280, cy + Math.sin(t * Math.PI) * 85]); }
+    const iris = new Path2D();
+    iris.arc(cx, cy, 62, 0, Math.PI * 2);
+    crayonFill(ctx, iris, "#2b6cb0", [cx - 65, cy - 65, 130, 130], s, 8);
+    const pupil = new Path2D();
+    pupil.arc(cx, cy, 26, 0, Math.PI * 2);
+    crayonFill(ctx, pupil, "#141414", [cx - 30, cy - 30, 60, 60], s + 1, 6);
+    scribble(ctx, lid, ink, 8, true, s);
+    scribble(ctx, circlePts(cx, cy, 62, 62, 20), ink, 5, false, s + 2);
+    for (let i = 0; i < 3; i++) scribble(ctx, [[cx + 158 + i * 6, cy - 50 + i * 50], [cx + 200, cy - 60 + i * 60]], "#a4271c", 6, false, s + 4 + i);
+  } else if (tool.id === "burp") {
+    const sq = new Path2D();
+    sq.roundRect(cx - 115, cy - 115, 230, 230, 34);
+    crayonFill(ctx, sq, "#ff6633", [cx - 120, cy - 120, 240, 240], s, 9);
+    scribble(ctx, [[cx - 85, cy - 115], [cx + 85, cy - 115], [cx + 115, cy - 85], [cx + 115, cy + 85], [cx + 85, cy + 115], [cx - 85, cy + 115], [cx - 115, cy + 85], [cx - 115, cy - 85]], "#b8401a", 6, true, s);
+    const bolt: [number, number][] = [[cx + 20, cy - 80], [cx - 50, cy + 10], [cx - 4, cy + 10], [cx - 22, cy + 82], [cx + 52, cy - 10], [cx + 6, cy - 10]];
+    ctx.fillStyle = "#fbf3e3";
+    ctx.fill(poly(bolt));
+    scribble(ctx, bolt, "#fbf3e3", 6, true, s + 1);
+  } else {
+    // OpenClaw: capit lobster merah — dua rahang melengkung membuka ke kanan atas.
+    const claw = new Path2D();
+    claw.moveTo(cx - 120, cy + 120);
+    claw.quadraticCurveTo(cx - 140, cy - 10, cx - 40, cy - 70);
+    claw.quadraticCurveTo(cx + 30, cy - 120, cx + 120, cy - 110);
+    claw.quadraticCurveTo(cx + 40, cy - 60, cx + 10, cy - 20);
+    claw.quadraticCurveTo(cx + 70, cy - 30, cx + 125, cy - 5);
+    claw.quadraticCurveTo(cx + 40, cy + 70, cx - 50, cy + 60);
+    claw.quadraticCurveTo(cx - 70, cy + 90, cx - 80, cy + 130);
+    claw.closePath();
+    crayonFill(ctx, claw, "#d8342b", [cx - 145, cy - 125, 275, 260], s, 9);
+    ctx.save();
+    ctx.strokeStyle = "#8f1d16";
+    ctx.lineWidth = 7;
+    ctx.lineJoin = ctx.lineCap = "round";
+    ctx.globalAlpha = 0.85;
+    ctx.stroke(claw);
+    ctx.restore();
+    ctx.fillStyle = "#141414";
+    ctx.beginPath();
+    ctx.arc(cx - 50, cy - 10, 10, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = ink;
+  let px = 72;
+  ctx.font = `400 ${px}px ${hands.marker}`;
+  while (ctx.measureText(tool.label).width > w - 70 && px > 30) ctx.font = `400 ${--px}px ${hands.marker}`;
+  const tw = ctx.measureText(tool.label).width;
+  ctx.fillText(tool.label, (w - tw) / 2, 430);
+  scribble(ctx, [[(w - tw) / 2 - 6, 452], [(w + tw) / 2 + 8, 446]], "#a4271c", 5, false, s + 9);
+  return tex(c);
+}

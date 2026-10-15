@@ -36,10 +36,11 @@ export function NotePad({ notes, index, size = 0.12, ...props }: ThreeElements["
   // Lembar lama: (1) terkelupas dari selotip, berengsel di tepi atas; (2) lepas dan jatuh karena gravitasi,
   // berayun & berputar sedikit; (3) mendarat berbaring di meja di bawah monitor dan tetap di sana
   // sampai lembar berikutnya jatuh. Koordinat lokal post-it (bidangnya miring ±8° mengikuti panel):
-  // permukaan meja ada di y ≈ −0.064 bila z lokal = 0.07. Mendarat ±2.5 mm di atas meja — di atas bidang
-  // bayangan kontak (1.3 mm) supaya lembar tidak tampak "terpotong" masuk ke meja — dan di kanan keyboard.
+  // permukaan meja ada di y ≈ −0.064 bila z lokal = 0.07. Mendarat ±3.5 mm di atas meja — di atas cutting
+  // mat (1 mm) & bidang bayangan kontak (1.3 mm), dan pad tidak diputar di sumbu z supaya lembar yang
+  // berbaring benar-benar rata (tak ada sudut yang "masuk" ke meja/mat).
   const PEEL = 0.55;
-  const LAND = { x: 0.07, y: -0.0622, z: 0.07, rx: -Math.PI / 2 + 0.138, rz: 0.45 };
+  const LAND = { x: 0.07, y: -0.0612, z: 0.07, rx: -Math.PI / 2 + 0.138, rz: 0.45 };
 
   useFrame((_, dt) => {
     const s = state.current;
@@ -205,7 +206,7 @@ export function Workstation({
       {glow && <rectAreaLight ref={area} intensity={0} color="#8e8aa0" />}
       {/* Menggantung dari bezel bawah (tepi bawah bingkai y 0.121, permukaan depan z ≈ 0.066), diselotip
           di tepi atasnya; bidang post-it mengikuti kemiringan panel ±8°. */}
-      <NotePad notes={notes} index={noteIndex} size={0.13} position={[0.2, 0.0545, 0.0761]} rotation={[-0.138, 0, -0.02]} />
+      <NotePad notes={notes} index={noteIndex} size={0.13} position={[0.2, 0.0545, 0.0761]} rotation={[-0.138, 0, 0]} />
 
       {/* Mac mini (model HD) di kanan monitor + kabel ke monitor */}
       {/* Diputar 180°: port di belakang menghadap dinding, logo & LED di depan */}

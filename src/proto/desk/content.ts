@@ -24,7 +24,7 @@ function kickerFor(id: string, copy: Copy) {
 
 export function summaryFor(id: string, copy: Copy): Card | null {
   const sm = copy.summary[id];
-  return sm ? { kicker: kickerFor(id, copy), title: sm.title, lines: [sm.text] } : null;
+  return sm ? { kicker: kickerFor(id, copy), title: sm.title, lines: [sm.text], links: sm.cta ? [sm.cta] : undefined } : null;
 }
 
 export function detailsFor(id: string, copy: Copy): Card | null {

@@ -97,6 +97,77 @@ export function stickyNote(note: Note, hand: string, w = 768, h = 768) {
 }
 
 /** Kartu indeks bergaris untuk papan gabus (pengalaman kerja). */
+/** Goresan krayon/pulpen: jalur digambar 3× dengan getaran kecil & alfa, seperti coretan tangan. */
+function scribble(ctx: CanvasRenderingContext2D, pts: [number, number][], color: string, width: number, closed = false, seed = 1) {
+  const r = rng(seed * 97 + pts.length);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineCap = ctx.lineJoin = "round";
+  for (let pass = 0; pass < 3; pass++) {
+    ctx.globalAlpha = pass === 0 ? 0.85 : 0.45;
+    ctx.lineWidth = width * (pass === 0 ? 1 : 0.6);
+    ctx.beginPath();
+    const all = closed ? [...pts, pts[0]] : pts;
+    all.forEach(([x, y], i) => {
+      const jx = (r() - 0.5) * width * 0.9, jy = (r() - 0.5) * width * 0.9;
+      if (i) ctx.lineTo(x + jx, y + jy);
+      else ctx.moveTo(x + jx, y + jy);
+    });
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+/** Arsiran zig-zag krayon untuk "mewarnai" area persegi. */
+function hatch(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, seed = 1) {
+  const r = rng(seed * 31);
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= 14; i++) pts.push([x + (i % 2 ? w : 0) + (r() - 0.5) * 6, y + (i / 14) * h]);
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  scribble(ctx, pts, color, 7, false, seed);
+  ctx.restore();
+}
+const circlePts = (cx: number, cy: number, rx: number, ry = rx, n = 22): [number, number][] =>
+  Array.from({ length: n + 1 }, (_, i) => [cx + Math.cos((i / n) * Math.PI * 2) * rx, cy + Math.sin((i / n) * Math.PI * 2) * ry]);
+
+/** Coretan "logo" perusahaan di samping nama (ikon khas tiap tempat kerja, gaya pulpen & krayon). */
+function companyDoodle(ctx: CanvasRenderingContext2D, org: string, x: number, y: number) {
+  const o = org.toLowerCase();
+  if (o.includes("web3")) {
+    // Kubus berantai (blockchain) — pulpen biru
+    const cube = (cx: number, cy: number, s: number, seed: number) => {
+      scribble(ctx, [[cx, cy - s], [cx + s, cy - s / 2], [cx + s, cy + s / 2], [cx, cy + s], [cx - s, cy + s / 2], [cx - s, cy - s / 2]], "#2f5fb3", 5, true, seed);
+      scribble(ctx, [[cx - s, cy - s / 2], [cx, cy], [cx + s, cy - s / 2]], "#2f5fb3", 4, false, seed + 1);
+      scribble(ctx, [[cx, cy], [cx, cy + s]], "#2f5fb3", 4, false, seed + 2);
+    };
+    cube(x + 34, y + 40, 30, 1);
+    cube(x + 110, y + 20, 22, 4);
+    scribble(ctx, [[x + 62, y + 34], [x + 90, y + 26]], "#2f5fb3", 4, false, 7);
+  } else if (o.includes("timedoor")) {
+    // Pintu dengan jam di tengahnya — krayon oranye
+    scribble(ctx, [[x + 20, y + 100], [x + 20, y], [x + 92, y], [x + 92, y + 100]], "#e07a2b", 8, false, 2);
+    hatch(ctx, x + 26, y + 6, 60, 92, "#f3a24a", 2);
+    scribble(ctx, circlePts(x + 56, y + 46, 24), "#7a3b12", 5, false, 3);
+    scribble(ctx, [[x + 56, y + 46], [x + 56, y + 30]], "#7a3b12", 5, false, 4);
+    scribble(ctx, [[x + 56, y + 46], [x + 68, y + 52]], "#7a3b12", 5, false, 5);
+    scribble(ctx, circlePts(x + 82, y + 64, 3, 3, 8), "#7a3b12", 4, false, 6);
+  } else if (o.includes("pupr")) {
+    // Jembatan lengkung di atas air — krayon kuning & biru
+    scribble(ctx, Array.from({ length: 13 }, (_, i) => [x + i * 11, y + 62 - Math.sin((i / 12) * Math.PI) * 46] as [number, number]), "#d9a21b", 8, false, 3);
+    scribble(ctx, [[x - 4, y + 64], [x + 136, y + 64]], "#7a5a12", 6, false, 4);
+    for (let i = 1; i < 6; i++) scribble(ctx, [[x + i * 22, y + 62 - Math.sin(((i * 2) / 12) * Math.PI) * 46], [x + i * 22, y + 64]], "#d9a21b", 4, false, 10 + i);
+    for (let k = 0; k < 2; k++)
+      scribble(ctx, Array.from({ length: 9 }, (_, i) => [x + i * 17, y + 82 + k * 14 + (i % 2 ? 5 : -5)] as [number, number]), "#2f6fb3", 5, false, 20 + k);
+  } else if (o.includes("pln")) {
+    // Kotak kuning, petir merah, gelombang biru (mirip logo PLN) — krayon
+    scribble(ctx, [[x + 10, y], [x + 110, y], [x + 110, y + 104], [x + 10, y + 104]], "#e0b21a", 6, true, 5);
+    hatch(ctx, x + 14, y + 4, 92, 96, "#f5cf3a", 5);
+    scribble(ctx, [[x + 68, y + 8], [x + 46, y + 52], [x + 66, y + 52], [x + 50, y + 96]], "#d23b2a", 8, false, 6);
+    for (let k = 0; k < 3; k++)
+      scribble(ctx, Array.from({ length: 7 }, (_, i) => [x + 16 + i * 15, y + 70 + k * 10 + (i % 2 ? 4 : -4)] as [number, number]), "#2f6fb3", 4, false, 30 + k);
+  }
+}
+
 export function jobCard(job: { role: string; org: string; period: string; line: string }, serif: string, sans: string, mono: string) {
   const W = 900, H = 560;
   const { c, ctx } = canvas(W, H);
@@ -121,6 +192,8 @@ export function jobCard(job: { role: string; org: string; period: string; line: 
   ctx.fillStyle = P.ink;
   ctx.font = `64px ${serif}`;
   ctx.fillText(job.org, 46, 192);
+  // Coretan logo perusahaan di kanan nama, seperti digambar pakai pulpen/krayon
+  companyDoodle(ctx, job.org, Math.min(46 + ctx.measureText(job.org).width + 34, W - 170), 110);
   ctx.font = `600 36px ${sans}`;
   ctx.fillText(job.role, 48, 248);
   ctx.fillStyle = P.inkSoft;

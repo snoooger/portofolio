@@ -55,7 +55,7 @@ function rng(seed: number) {
 const SON = { bg: "#141413", panel: "#1a1a19", line: "#2c2b29", cream: "#ede6d8", dim: "#9b968c", green: "#7fd6a0" };
 
 /** Kantor pixel-art isometrik (digambar kecil lalu diperbesar tanpa smoothing). */
-function pixelOffice() {
+export function pixelOffice() {
   const W = 260, H = 170;
   const { c, ctx } = canvas(W, H);
   const ox = 130, oy = 46, tw = 9, th = 4.5;

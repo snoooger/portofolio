@@ -13,7 +13,7 @@ import { stopMix } from "../useScrollProgress";
 import { Pencil, Sheet } from "../objects/DeskProps";
 import { Asset, MODELS } from "../hd/Asset";
 import { useFonts } from "../final/useFonts";
-import { PhoneFarmRack } from "./PhoneFarmRack";
+import { PLATE, PhoneFarmRack, RACK } from "./PhoneFarmRack";
 import { HD, Model, type Fit } from "./Model";
 import { Workstation } from "./Workstation";
 import { INKS, heroPaper, jobCard, postIt, type HandFamilies, type NoteStyle } from "./paper";
@@ -490,14 +490,24 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
         </group>
       ))}
 
-      {/* Rak phone farm */}
+      {/* Rak phone farm; post-it FarmAgent diselotip di pelat label atas rak, menghadap kamera */}
       <group position={[rx, TOP, rz]} rotation-y={0.32}>
         {fonts && <PhoneFarmRack fonts={fonts} run={farmRun} />}
+        {hands && (
+          <PostIt
+            note={copy.projects.farmagent}
+            hands={hands}
+            style={STYLE.farmagent}
+            size={0.19}
+            tape
+            position={[-0.12, PLATE.y + 0.004, RACK.D / 2 + 0.0045]}
+            rotation={[0, 0, 0.03]}
+          />
+        )}
       </group>
-      {/* Binder terbuka di kiri-depan rak; post-it FarmAgent menempel di halaman kanannya, di samping teks 3D */}
+      {/* Binder terbuka di kiri-depan rak */}
       <group position={[-1.02, 0, 0.059]} rotation-y={0.35}>
         <Asset src={MODELS.binder} position={[0, TOP, 0]} hide={BINDER_HIDE} />
-        {hands && <DeskNote note={copy.projects.farmagent} hands={hands} style={STYLE.farmagent} size={0.13} x={0.098} z={-0.006} rot={0.06} lift={0.0145} />}
       </group>
 
       {/* Monitor + Mac mini (Sonar, PromptedSite, ViralEngine, Security) */}

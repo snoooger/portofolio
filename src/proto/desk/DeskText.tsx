@@ -38,9 +38,11 @@ type TextMesh = THREE.Mesh & { fillOpacity: number; outlineOpacity: number; text
 type Row =
   | { kind: "kicker" | "title" | "body"; text: string }
   | { kind: "facts"; facts: { v: string; k: string }[] }
-  | { kind: "item"; a: string; b: string };
+  | { kind: "item"; a: string; b: string }
+  | { kind: "cta"; label: string; href: string };
 
-const GAP: Record<Row["kind"], number> = { kicker: 0.035, title: 0.05, body: 0.06, facts: 0.04, item: 0.035 };
+const GAP: Record<Row["kind"], number> = { kicker: 0.035, title: 0.05, body: 0.06, facts: 0.04, item: 0.035, cta: 0.04 };
+const CTA_H = 0.078, CTA_FS = 0.032;
 const sstep = THREE.MathUtils.smoothstep;
 
 /** Gradasi vertikal krem: pekat di bawah, transparan di atas (latar teks di layar potret). */
@@ -66,6 +68,7 @@ function rowsOf(card: Card): Row[] {
   if (card.lines.length) rows.push({ kind: "body", text: card.lines.join(" ") });
   if (card.facts?.length) rows.push({ kind: "facts", facts: card.facts });
   card.list?.forEach((x) => rows.push({ kind: "item", a: x.a, b: x.c ? `${x.b} · ${x.c}` : x.b }));
+  card.links?.forEach((l) => rows.push({ kind: "cta", label: l.label, href: l.href }));
   return rows;
 }
 
@@ -85,6 +88,45 @@ function T({ children, font, size, color, width, ...props }: { children: string;
       {children}
       <meshBasicMaterial attach="material" transparent depthTest={false} depthWrite={false} toneMapped={false} />
     </Text>
+  );
+}
+
+/** Tombol kapsul kuning di bawah teks 3D: membuka situs proyek (hanya bisa diklik saat terlihat penuh). */
+function Cta({ label, href }: { label: string; href: string }) {
+  const mat = useRef<THREE.MeshBasicMaterial>(null);
+  const w = label.length * CTA_FS * 0.56 + 0.11;
+  const geo = useMemo(() => {
+    const r = CTA_H / 2;
+    const sh = new THREE.Shape();
+    sh.moveTo(r, 0);
+    sh.lineTo(w - r, 0);
+    sh.absarc(w - r, -r, r, Math.PI / 2, -Math.PI / 2, true);
+    sh.lineTo(r, -CTA_H);
+    sh.absarc(r, -r, r, -Math.PI / 2, Math.PI / 2, true);
+    return new THREE.ShapeGeometry(sh, 16);
+  }, [w]);
+  const live = () => (mat.current?.opacity ?? 0) > 0.6;
+  return (
+    <group>
+      <mesh
+        geometry={geo}
+        renderOrder={19}
+        userData={{ pill: true }}
+        onClick={(e) => {
+          if (!live()) return;
+          e.stopPropagation();
+          window.open(href, "_blank", "noopener");
+        }}
+        onPointerOver={() => live() && (document.body.style.cursor = "pointer")}
+        onPointerOut={() => (document.body.style.cursor = "")}
+      >
+        <meshBasicMaterial ref={mat} color="#f5c84c" transparent opacity={0} depthTest={false} depthWrite={false} toneMapped={false} />
+      </mesh>
+      <Text font={FONT.sansSemi} fontSize={CTA_FS} color="#1d3a2b" anchorX="left" anchorY="middle" position={[0.055, -CTA_H / 2, 0.001]} renderOrder={20}>
+        {label}
+        <meshBasicMaterial attach="material" transparent depthTest={false} depthWrite={false} toneMapped={false} />
+      </Text>
+    </group>
   );
 }
 
@@ -137,6 +179,11 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
       g.visible = o > 0.01;
       let h = 0;
       g.traverse((obj) => {
+        if (obj.userData.pill) {
+          const m = (obj as THREE.Mesh).material as THREE.MeshBasicMaterial;
+          m.opacity = o;
+          return;
+        }
         const t = obj as TextMesh;
         if (!t.textRenderInfo) return;
         t.fillOpacity = o;
@@ -160,7 +207,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
         </mesh>
       )}
       {rows.map((r, i) => (
-        <group key={i} ref={(g) => void (refs.current[i] = g)} visible={false} userData={r.kind === "facts" ? { h: 0.15 } : {}}>
+        <group key={i} ref={(g) => void (refs.current[i] = g)} visible={false} userData={r.kind === "facts" ? { h: 0.15 } : r.kind === "cta" ? { h: CTA_H } : {}}>
           {r.kind === "kicker" && (
             <T font={FONT.mono} size={0.036} color={th.accent} th={th} letterSpacing={0.16} width={W}>
               {r.text}
@@ -190,6 +237,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
                 </group>
               );
             })}
+          {r.kind === "cta" && <Cta label={r.label} href={r.href} />}
           {r.kind === "item" && (
             <>
               <T font={FONT.sansSemi} size={0.042} color={th.title} th={th} width={W}>

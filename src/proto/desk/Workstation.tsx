@@ -3,12 +3,14 @@
 // Workstation: monitor 27" yang tersambung ke Mac mini, dan keyboard. Layar menampilkan proyek
 // yang sedang dibahas (Sonar, PromptedSite, ViralEngine, Security) dan berganti mengikuti scroll.
 // Di bezel kiri-bawah ada tumpukan post-it: lembar teratas berganti per proyek, lembar lama terkelupas jatuh.
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, type ThreeElements } from "@react-three/fiber";
 import * as THREE from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 import { Cable } from "../hd/Devices";
-import { promptedGallery, sonarLanding, thesisScreen, viralDashboard } from "./screens2";
+import { thesisScreen, viralDashboard } from "./screens2";
+import { promptedSite, sonarSite, type SiteFonts } from "./sites";
+import { canvasFont } from "../fonts";
 import { MacDesktop } from "./macos";
 import { HD, Model, type Fit } from "./Model";
 import type { Drive } from "../objects/types";
@@ -27,8 +29,16 @@ RectAreaLightUniformsLib.init(); // sekali per modul; wajib untuk RectAreaLight 
 export function NotePad({ notes, index, size = 0.12, ...props }: ThreeElements["group"] & { notes: THREE.Texture[]; index: Drive; size?: number }) {
   const top = useRef<THREE.MeshStandardMaterial>(null);
   const fallMat = useRef<THREE.MeshStandardMaterial>(null);
-  const fall = useRef<THREE.Mesh>(null);
+  const pivot = useRef<THREE.Group>(null);
+  const sheet = useRef<THREE.Mesh>(null);
   const state = useRef({ cur: -1, prev: -1, t: 1 });
+
+  // Lembar lama: (1) terkelupas dari selotip, berengsel di tepi atas; (2) lepas dan jatuh karena gravitasi,
+  // berayun & berputar sedikit; (3) mendarat berbaring di meja di bawah monitor dan tetap di sana
+  // sampai lembar berikutnya jatuh. Koordinat lokal post-it (bidangnya miring ±8° mengikuti panel):
+  // permukaan meja ada di y ≈ −0.064 bila z lokal = 0.07.
+  const PEEL = 0.55;
+  const LAND = { x: 0.035, y: -0.064, z: 0.07, rx: -Math.PI / 2 + 0.138, rz: 0.45 };
 
   useFrame((_, dt) => {
     const s = state.current;
@@ -40,14 +50,29 @@ export function NotePad({ notes, index, size = 0.12, ...props }: ThreeElements["
       if (top.current) top.current.map = notes[want];
       if (fallMat.current && s.prev >= 0) fallMat.current.map = notes[s.prev];
     }
-    s.t = Math.min(1, s.t + dt * 1.6);
-    if (fall.current) {
-      const k = s.t;
-      // Lembar lama terkelupas dari atas, berputar, lalu jatuh dan hilang.
-      fall.current.visible = k < 1;
-      fall.current.position.set(k * size * 0.4, -k * k * size * 2.2, 0.002 + k * 0.03);
-      fall.current.rotation.set(-k * 0.9, 0, -k * 0.6);
-      if (fallMat.current) fallMat.current.opacity = 1 - k * k;
+    s.t = Math.min(1, s.t + dt / 1.15);
+    const g = pivot.current, m = sheet.current;
+    if (!g || !m) return;
+    g.visible = s.prev >= 0;
+    const k = s.t;
+    if (k < 0.2) {
+      // Terkelupas: berengsel di tepi atas, bagian bawah terangkat keluar
+      const p = THREE.MathUtils.smoothstep(k / 0.2, 0, 1);
+      g.position.set(0, size / 2, 0.002);
+      g.rotation.set(-PEEL * p, 0, 0);
+      m.position.set(0, -size / 2, 0);
+    } else {
+      // Jatuh: pusat lembar mengikuti gravitasi (kuadratik), berayun lalu rebah di meja
+      const p = (k - 0.2) / 0.8;
+      const y0 = size / 2 - (size / 2) * Math.cos(PEEL), z0 = 0.002 + (size / 2) * Math.sin(PEEL);
+      const sway = (1 - p) * Math.sin(p * 9);
+      g.position.set(LAND.x * p + sway * 0.012, y0 + (LAND.y - y0) * p * p, z0 + (LAND.z - z0) * p);
+      g.rotation.set(
+        THREE.MathUtils.lerp(-PEEL, LAND.rx, 1 - (1 - p) * (1 - p)) + (1 - p) * Math.sin(p * 12) * 0.22,
+        0,
+        LAND.rz * p + sway * 0.18,
+      );
+      m.position.set(0, 0, 0);
     }
   });
 
@@ -68,10 +93,13 @@ export function NotePad({ notes, index, size = 0.12, ...props }: ThreeElements["
         <planeGeometry args={[size * 0.5, size * 0.15]} />
         <meshStandardMaterial color="#efe6cf" transparent opacity={0.72} roughness={0.9} depthWrite={false} />
       </mesh>
-      <mesh ref={fall} visible={false}>
-        <planeGeometry args={[size, size]} />
-        <meshStandardMaterial ref={fallMat} map={notes[0]} roughness={0.85} transparent />
-      </mesh>
+      {/* Lembar yang terkelupas & jatuh */}
+      <group ref={pivot} visible={false}>
+        <mesh ref={sheet} castShadow receiveShadow>
+          <planeGeometry args={[size, size]} />
+          <meshStandardMaterial ref={fallMat} map={notes[0]} roughness={0.85} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -90,21 +118,38 @@ export function Workstation({
   const placed = useRef(false);
   const glowColor = useMemo(() => SCREEN_GLOW.map((c) => new THREE.Color(c)), []);
   // Tiap proyek tampil di dalam jendela aplikasi pada desktop bergaya macOS (menu bar & dock kaca).
+  // Font asli situs Sonar & PromptedSite dimuat dulu (async) sebelum layarnya digambar.
+  const [site, setSite] = useState<SiteFonts | null>(null);
+  useEffect(() => {
+    let alive = true;
+    Promise.all([
+      canvasFont("--font-pixelify", "700 40px"),
+      canvasFont("--font-worksans", "500 20px"),
+      canvasFont("--font-worksans", "400 20px"),
+      canvasFont("--font-bricolage", "800 40px"),
+      canvasFont("--font-bricolage", "300 40px"),
+      canvasFont("--font-bricolage", "500 20px"),
+    ]).then(([pixel, work, , brico]) => alive && setSite({ pixel, work, brico, mono: fonts.mono }));
+    return () => {
+      alive = false;
+    };
+  }, [fonts]);
   const desktops = useMemo(() => {
+    if (!site) return null;
     const src = (t: THREE.Texture) => {
       const c = t.image as HTMLCanvasElement;
       t.dispose();
       return c;
     };
     return [
-      new MacDesktop(src(sonarLanding(fonts)), fonts, { app: "Browser", title: "Sonar — AI search office", dark: true, url: true, active: 1 }),
-      new MacDesktop(src(promptedGallery(fonts)), fonts, { app: "Browser", title: "promptedsite.com", dark: true, url: true, active: 1 }),
+      new MacDesktop(sonarSite(site), fonts, { app: "Browser", title: "sonar-seo.vercel.app", url: true, active: 1 }),
+      new MacDesktop(promptedSite(site), fonts, { app: "Browser", title: "promptedsite.com", dark: true, url: true, active: 1 }),
       new MacDesktop(src(viralDashboard(fonts)), fonts, { app: "Browser", title: "ViralEngine — Trend radar", dark: true, url: true, active: 1 }),
       new MacDesktop(src(thesisScreen(fonts)), fonts, { app: "Notebook", title: "thesis.ipynb", active: 5 }),
     ];
-  }, [fonts]);
-  useEffect(() => () => desktops.forEach((d) => d.dispose()), [desktops]);
-  const screens = useMemo(() => desktops.map((d) => d.texture), [desktops]);
+  }, [fonts, site]);
+  useEffect(() => () => desktops?.forEach((d) => d.dispose()), [desktops]);
+  const screens = useMemo(() => desktops?.map((d) => d.texture) ?? [], [desktops]);
 
   // Material layar dipasang ke panel layar model Studio Display.
   const mat = useRef<THREE.MeshBasicMaterial>(new THREE.MeshBasicMaterial({ color: "#0a0a0a", toneMapped: false }));
@@ -132,7 +177,7 @@ export function Workstation({
     // Layar mati (gelap) di luar bagian proyek; menyala dengan kedip singkat saat berganti.
     const level = on ? 0.25 + 0.75 * wake.current : 0.06;
     m.color.setScalar(THREE.MathUtils.damp(m.color.r, level, 8, dt));
-    if (i === 1) desktops[1].draw(scroll.current); // galeri PromptedSite digulir di dalam jendela
+    if (i === 1) desktops?.[1].draw(scroll.current); // halaman PromptedSite digulir di dalam jendela
 
     // Cahaya layar: area light seukuran panel, sedikit di depannya, menghadap pengguna.
     const L = area.current;

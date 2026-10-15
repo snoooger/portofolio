@@ -1,5 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Gochi_Hand, Instrument_Serif, Inter_Tight, JetBrains_Mono, Kalam, Patrick_Hand, Permanent_Marker, Shadows_Into_Light } from "next/font/google";
+import {
+  Bricolage_Grotesque,
+  Caveat,
+  Gochi_Hand,
+  Instrument_Serif,
+  Inter_Tight,
+  JetBrains_Mono,
+  Kalam,
+  Patrick_Hand,
+  Permanent_Marker,
+  Pixelify_Sans,
+  Shadows_Into_Light,
+  Work_Sans,
+} from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ProtoScroll } from "@/proto/ProtoScroll";
@@ -16,6 +29,10 @@ const kalam = Kalam({ subsets: ["latin"], weight: ["400", "700"], variable: "--f
 const patrick = Patrick_Hand({ subsets: ["latin"], weight: "400", variable: "--font-patrick", preload: false });
 const shadows = Shadows_Into_Light({ subsets: ["latin"], weight: "400", variable: "--font-shadows", preload: false });
 const gochi = Gochi_Hand({ subsets: ["latin"], weight: "400", variable: "--font-gochi", preload: false });
+// Font asli situs proyek, untuk layar monitor: Sonar (Pixelify Sans + Work Sans), PromptedSite (Bricolage).
+const pixelify = Pixelify_Sans({ subsets: ["latin"], weight: "700", variable: "--font-pixelify", preload: false });
+const workSans = Work_Sans({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-worksans", preload: false });
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], weight: ["300", "500", "800"], variable: "--font-bricolage", preload: false });
 
 export const metadata: Metadata = {
   metadataBase: SITE_URL,
@@ -53,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${display.variable} ${sans.variable} ${mono.variable} ${hand.variable} ${marker.variable} ${kalam.variable} ${patrick.variable} ${shadows.variable} ${gochi.variable}`}
+      className={`${display.variable} ${sans.variable} ${mono.variable} ${hand.variable} ${marker.variable} ${kalam.variable} ${patrick.variable} ${shadows.variable} ${gochi.variable} ${pixelify.variable} ${workSans.variable} ${bricolage.variable}`}
     >
       <body className="paper-grain">
         <ProtoScroll />

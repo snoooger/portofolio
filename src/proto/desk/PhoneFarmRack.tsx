@@ -34,6 +34,9 @@ function PhoneHD({ map, matRef, ...props }: ThreeElements["group"] & { map: THRE
   );
 }
 const GAP_X = 0.088, TIER = 0.2, W = COLS * GAP_X + 0.06, D = 0.2;
+/** Pelat label di atas rak: pusat y & tinggi (m, lokal rak). */
+export const PLATE = { y: ROWS * TIER + 0.04 + 0.13, h: 0.22 };
+export const RACK = { W, D };
 
 function Steel() {
   return <meshPhysicalMaterial color="#222326" metalness={0.75} roughness={0.42} clearcoat={0.2} />;
@@ -81,14 +84,21 @@ export function PhoneFarmRack({ fonts, run, ...props }: ThreeElements["group"] &
   const tierY = (r: number) => r * TIER;
   return (
     <group {...props}>
-      {/* Tiang sudut */}
+      {/* Tiang sudut (tiang depan lebih tinggi: menyangga pelat label di atas rak) */}
       {[-1, 1].flatMap((sx) =>
-        [-1, 1].map((sz) => (
-          <RoundedBox key={`${sx}${sz}`} args={[0.016, ROWS * TIER + 0.04, 0.016]} radius={0.003} position={[(sx * W) / 2, (ROWS * TIER) / 2, (sz * D) / 2]} castShadow>
-            <Steel />
-          </RoundedBox>
-        )),
+        [-1, 1].map((sz) => {
+          const h = (ROWS * TIER + 0.04) + (sz > 0 ? PLATE.h + 0.02 : 0);
+          return (
+            <RoundedBox key={`${sx}${sz}`} args={[0.016, h, 0.016]} radius={0.003} position={[(sx * W) / 2, h / 2, (sz * D) / 2]} castShadow>
+              <Steel />
+            </RoundedBox>
+          );
+        }),
       )}
+      {/* Pelat label baja di atas depan rak (tempat post-it FarmAgent diselotip) */}
+      <RoundedBox args={[W - 0.016, PLATE.h, 0.006]} radius={0.002} position={[0, PLATE.y, D / 2]} castShadow receiveShadow>
+        <meshPhysicalMaterial color="#2b2c30" metalness={0.7} roughness={0.38} clearcoat={0.3} />
+      </RoundedBox>
       {Array.from({ length: ROWS }, (_, r) => {
         const y = tierY(r);
         return (

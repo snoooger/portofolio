@@ -10,9 +10,9 @@ import * as THREE from "three";
 import { P } from "../palette";
 import { matTexture, plainPaperTexture } from "../textures";
 import { stopMix } from "../useScrollProgress";
-import { Mug, Pencil, Sheet } from "../objects/DeskProps";
+import { Pencil, Sheet } from "../objects/DeskProps";
 import { Asset, MODELS } from "../hd/Asset";
-import { useFonts, type Fonts } from "../final/useFonts";
+import { useFonts } from "../final/useFonts";
 import { PhoneFarmRack } from "./PhoneFarmRack";
 import { HD, Model, type Fit } from "./Model";
 import { Workstation } from "./Workstation";
@@ -20,7 +20,7 @@ import { INKS, heroPaper, jobCard, postIt, type HandFamilies, type NoteStyle } f
 import { useHands } from "./useHands";
 import { BOARD_Y, DESK, DESK_STOPS, SPOT, TOP, WALL_Z, deskIndex } from "./stops";
 import { IPhone } from "./IPhone";
-import { EMAIL, NAME, type Copy, type Note } from "./copy";
+import type { Copy, Note } from "./copy";
 import type { Drive } from "../objects/types";
 import type { Quality } from "./quality";
 import { applyFraming, makeAxes } from "./frame";
@@ -126,41 +126,6 @@ function DeskNote(props: { note: Note; hands: HandFamilies; style: NoteStyle; si
   );
 }
 
-function BusinessCard({ fonts, role, position, rot }: { fonts: Fonts; role: string; position: [number, number, number]; rot: number }) {
-  const t = useMemo(() => {
-    const c = document.createElement("canvas");
-    c.width = 1050;
-    c.height = 600;
-    const ctx = c.getContext("2d")!;
-    ctx.fillStyle = "#FDFBF6";
-    ctx.fillRect(0, 0, 1050, 600);
-    ctx.fillStyle = P.terracotta;
-    ctx.fillRect(0, 0, 18, 600);
-    ctx.fillStyle = P.ink;
-    ctx.font = `78px ${fonts.serif}`;
-    ctx.fillText(NAME, 80, 170);
-    ctx.fillStyle = P.terracottaDark;
-    ctx.font = `500 26px ${fonts.mono}`;
-    ctx.fillText(role.toUpperCase(), 84, 222);
-    ctx.fillStyle = P.inkSoft;
-    ctx.font = `500 32px ${fonts.sans}`;
-    [EMAIL, "linkedin.com/in/zaidanjibranazhar", "github.com/snoooger"].forEach((l, i) => ctx.fillText(l, 84, 360 + i * 56));
-    const tx = new THREE.CanvasTexture(c);
-    tx.colorSpace = THREE.SRGBColorSpace;
-    tx.anisotropy = 8;
-    return tx;
-  }, [fonts, role]);
-  useEffect(() => () => t.dispose(), [t]);
-  return (
-    <mesh position={position} rotation={[-Math.PI / 2, 0, rot]} castShadow receiveShadow>
-      <boxGeometry args={[0.089, 0.051, 0.0006]} />
-      {[0, 1, 2, 3, 5].map((i) => (
-        <meshStandardMaterial key={i} attach={`material-${i}`} color="#FDFBF6" />
-      ))}
-      <meshStandardMaterial attach="material-4" map={t} roughness={0.8} />
-    </mesh>
-  );
-}
 
 /** Serat kertas: normal map & roughness dari noise, dipakai bersama semua kertas di pegboard. */
 const PAPER = (() => {
@@ -547,7 +512,6 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
 
       {/* Kontak & footer: iPhone + kartu nama */}
       {fonts && <IPhone fonts={fonts} copy={copy} onOpen={onPhone} position={[phx, TOP, phz]} rotation-y={-0.2} />}
-      {fonts && <BusinessCard fonts={fonts} role={copy.role} position={[phx + 0.15, TOP + 0.002, phz - 0.1]} rot={0.28} />}
 
       {/* Barang CC0 & personal */}
       <Asset src={MODELS.lamp} position={[1.05, TOP + 0.088, -0.36]} rotation-y={-2.6} />
@@ -558,7 +522,6 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
         <pointLight position={[0.88, TOP + 0.45, -0.16]} intensity={0.35} distance={1.4} decay={1.6} color="#ffe2b8" />
       )}
       <Asset src={MODELS.plant} position={[-0.4, TOP, -0.5]} scale={0.3} />
-      <Mug position={[0.98, TOP, 0.08]} scale={0.15} />
 
       {/* Pegboard IKEA SKÅDIS (model HD) di belakang monitor */}
       <Model src={HD.pegboard} fit={PEG_FIT} onMesh={whitePeg} rotation-y={-Math.PI / 2} position={[0.05, BY - 0.47, WALL_Z + 0.02]} />
@@ -593,7 +556,7 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive;
         </group>
       )}
       {/* Pendidikan: sudut kelulusan (panji, rak buku, topi toga) di dinding kanan pegboard */}
-      {fonts && <GradCorner fonts={fonts} position={[1.56, BY + 0.02, WALL_Z]} />}
+      <GradCorner position={[1.56, BY + 0.02, WALL_Z]} />
       {/* Post-it pendidikan ditempel langsung di dinding, di tengah sudut kelulusan */}
       {hands && (
         <PostIt note={copy.education} hands={hands} style={STYLE.education} size={0.18} tape position={[1.56, BY - 0.01, WALL_Z + 0.002]} rotation={[0, 0, 0.025]} />

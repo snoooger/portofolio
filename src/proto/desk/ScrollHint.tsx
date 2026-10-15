@@ -56,7 +56,7 @@ export function ScrollHint({ f, count, label, touchLabel, enabled }: { f: DeskDr
           <span className="absolute left-1/2 top-[5px] block h-[6px] w-[3px] -translate-x-1/2 animate-[hint-wheel_1.6s_ease-in-out_infinite] rounded-full bg-[#f5c84c]" />
         </span>
       )}
-      <span className="font-mono text-[11px] uppercase tracking-[0.12em]">{touch ? touchLabel : label}</span>
+      <span className="whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.12em]">{touch ? touchLabel : label}</span>
       <style>{`
         @keyframes hint-wheel { 0% { transform: translate(-50%, 0); opacity: 1 } 70% { transform: translate(-50%, 8px); opacity: 0 } 100% { transform: translate(-50%, 0); opacity: 0 } }
         @keyframes hint-up { 0%,100% { transform: translateY(3px) } 50% { transform: translateY(-3px) } }

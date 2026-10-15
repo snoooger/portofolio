@@ -17,7 +17,9 @@ export type DeskStop = {
   span: number;
   /** Pose & lebar khusus layar potret (HP), bila pose umum membuat objek terhalang/terpotong di sana. */
   portrait?: { pos: V3; look: V3; span?: number };
-  text?: { side: 1 | -1; top?: number; tone?: Tone; portraitTone?: Tone };
+  /** `width`: faktor lebar blok teks di layar lebar (mis. < 1 agar berhenti sebelum lengan lampu meja).
+   *  `panel`: panel krem lembut di belakang teks (layar lebar) bila latarnya ramai/sewarna (pegboard, kayu). */
+  text?: { side: 1 | -1; top?: number; tone?: Tone; portraitTone?: Tone; width?: number; panel?: boolean };
 };
 
 export const TOP = 0.75;
@@ -46,20 +48,20 @@ export const DESK_STOPS: DeskStop[] = [
   { id: "farmagent", pos: [-0.5, TOP + 0.85, 0.72], look: [-0.8, TOP + 0.63, -0.16], span: 0.62, text: { side: -1, top: 0.3 } },
   // Monitor: pusat panel layar di x 0.1, y TOP+0.30. Teks 3D di kanan atas, di depan dinding putih
   // (bukan di depan meja & Mac mini) supaya kontras dan mudah dibaca.
-  { id: "sonar", pos: [0.08, TOP + 0.4, 0.62], look: [0.1, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: 0.45 } },
-  { id: "promptedsite", pos: [0.1, TOP + 0.4, 0.61], look: [0.11, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: 0.45 } },
-  { id: "viralengine", pos: [0.08, TOP + 0.4, 0.62], look: [0.1, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: 0.45 } },
-  { id: "security", pos: [0.1, TOP + 0.4, 0.61], look: [0.11, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: 0.45 } },
+  { id: "sonar", pos: [0.08, TOP + 0.4, 0.62], look: [0.1, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: 0.45, width: 0.74 } },
+  { id: "promptedsite", pos: [0.1, TOP + 0.4, 0.61], look: [0.11, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: 0.45, width: 0.74 } },
+  { id: "viralengine", pos: [0.08, TOP + 0.4, 0.62], look: [0.1, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: 0.45, width: 0.74 } },
+  { id: "security", pos: [0.1, TOP + 0.4, 0.61], look: [0.11, TOP + 0.25, -0.18], span: 0.66, text: { side: 1, top: 0.45, width: 0.74 } },
   { id: "skills", pos: [-0.9, TOP + 0.48, 0.56], look: [-0.9, TOP, 0.3], span: 0.42, text: { side: -1, tone: "light" } },
   // Pegboard: teks di dinding polos di sebelah kiri (pengalaman) / kanan (pendidikan).
-  { id: "experience", pos: [-0.76, BOARD_Y + 0.35, WALL_Z + 1.23], look: [-0.76, BOARD_Y, WALL_Z], span: 0.72, text: { side: -1, top: -0.12 },
+  { id: "experience", pos: [-0.76, BOARD_Y + 0.35, WALL_Z + 1.23], look: [-0.76, BOARD_Y, WALL_Z], span: 0.8, text: { side: -1, top: -0.12 },
     // Kamera agak tinggi (menunduk ±15°/27°) supaya pelat atas rak FarmAgent di depan pegboard tidak menutupi
     // baris bawah post-it alat; di HP kamera mundur lebih jauh sehingga perlu lebih tinggi & sedikit zoom out.
     portrait: { pos: [-0.76, BOARD_Y + 0.65, WALL_Z + 1.18], look: [-0.76, BOARD_Y + 0.04, WALL_Z], span: 0.95 } },
-  { id: "certificates", pos: [0.12, BOARD_Y + 0.02, WALL_Z + 1.0], look: [0.12, BOARD_Y + 0.02, WALL_Z], span: 1.1, text: { side: 1, top: 0.2 } },
+  { id: "certificates", pos: [0.12, BOARD_Y + 0.02, WALL_Z + 1.0], look: [0.12, BOARD_Y + 0.02, WALL_Z], span: 1.1, text: { side: 1, top: 0.2, panel: true } },
   { id: "education", pos: [1.47, BOARD_Y - 0.06, WALL_Z + 0.9], look: [1.47, BOARD_Y - 0.1, WALL_Z], span: 0.62, text: { side: 1, top: 0.3 } },
   // Kontak & footer di layar iPhone
-  { id: "contact", pos: [0.645, TOP + 0.25, 0.322], look: [0.642, TOP, 0.262], span: 0.11, text: { side: -1 } },
+  { id: "contact", pos: [0.645, TOP + 0.25, 0.322], look: [0.642, TOP, 0.262], span: 0.11, text: { side: -1, panel: true } },
 ];
 
 export const deskIndex = (id: string) => DESK_STOPS.findIndex((s) => s.id === id);

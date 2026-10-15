@@ -63,6 +63,22 @@ const SCRIM = (() => {
   return t;
 })();
 
+/** Panel krem bertepi lembut (latar teks di layar lebar untuk perhentian berlatar ramai). */
+const PANEL = (() => {
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const ctx = c.getContext("2d")!;
+  ctx.filter = "blur(18px)";
+  ctx.fillStyle = "rgba(246,240,230,0.9)";
+  ctx.beginPath();
+  ctx.roundRect(40, 40, 176, 176, 40);
+  ctx.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+})();
+
 function rowsOf(card: Card): Row[] {
   const rows: Row[] = [{ kind: "kicker", text: card.kicker.toUpperCase() }, { kind: "title", text: card.title }];
   if (card.lines.length) rows.push({ kind: "body", text: card.lines.join(" ") });
@@ -138,7 +154,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
     const box = portrait
       ? { x: -0.88 * aspect, y: -0.4, w: 1.76 * aspect, s: 0.82 }
       : side > 0
-        ? { x: (-1 + 2 * OBJECT_FRAC + 0.08) * aspect, y: stop.text!.top ?? 0.5, w: (2 - 2 * OBJECT_FRAC - 0.16) * aspect, s: 1 }
+        ? { x: (-1 + 2 * OBJECT_FRAC + 0.08) * aspect, y: stop.text!.top ?? 0.5, w: (2 - 2 * OBJECT_FRAC - 0.16) * aspect * (stop.text!.width ?? 1), s: 1 }
         : { x: -0.92 * aspect, y: stop.text!.top ?? 0.5, w: (2 - 2 * OBJECT_FRAC - 0.16) * aspect, s: 1 };
     const anchor = p.clone().addScaledVector(ax.dir, D).addScaledVector(ax.right, box.x * halfH).addScaledVector(ax.up, box.y * halfH);
     const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(ax.right, ax.up, ax.dir.clone().negate()));
@@ -154,6 +170,8 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
   // Di layar potret teks selalu di atas gradasi krem → nada gelap.
   const th = THEME[portrait ? "dark" : (stop.text!.tone ?? "dark")];
   const scrimMat = useRef<THREE.MeshBasicMaterial>(null);
+  const panelMesh = useRef<THREE.Mesh>(null);
+  const panel = !portrait && !!stop.text!.panel;
   const refs = useRef<(THREE.Group | null)[]>([]);
   const ctaFade = useRef(0);
 
@@ -168,6 +186,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
       m.opacity = THREE.MathUtils.damp(m.opacity, settled ? 1 : 0, settled ? 5 : 14, dt);
       m.visible = m.opacity > 0.01;
     }
+    let wmax = 0;
     refs.current.forEach((g, i) => {
       if (!g) return;
       const a = sstep(d + i * 0.025, -0.55, -0.22); // datang: zoom in dari belakang
@@ -180,6 +199,7 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
         if (!t.textRenderInfo) return;
         t.fillOpacity = o;
         h = Math.max(h, -t.textRenderInfo.blockBounds[1] - t.position.y);
+        wmax = Math.max(wmax, t.textRenderInfo.blockBounds[2] + t.position.x);
       });
       if (g.userData.h) h = Math.max(h, g.userData.h as number);
       if (rows[i].kind === "cta") ctaFade.current = o;
@@ -188,6 +208,18 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
       g.position.set(0, y, -0.9 * (1 - a) + 0.7 * b);
       y -= (h + GAP[rows[i].kind]) * s;
     });
+    // Panel mengikuti ukuran blok teks; muncul setelah kamera berhenti (seperti gradasi di HP).
+    const pm = panelMesh.current;
+    if (pm) {
+      const mat = pm.material as THREE.MeshBasicMaterial;
+      const settled = Math.abs(d) < 0.02;
+      mat.opacity = THREE.MathUtils.damp(mat.opacity, settled ? 1 : 0, settled ? 5 : 14, dt);
+      pm.visible = mat.opacity > 0.01;
+      // Tekstur: isi 176/256 di tengah → skala agar bagian padat menutupi teks + margin.
+      const k2 = 256 / 176, pad = 0.09;
+      pm.scale.set((wmax + pad * 2) * k2, (-y + pad * 2) * k2, 1);
+      pm.position.set(wmax / 2, y / 2, -0.03);
+    }
   });
 
   const W = frame.w;
@@ -197,6 +229,12 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
         <mesh position={[frame.scrim.cx, frame.scrim.cy, -0.02]} renderOrder={19}>
           <planeGeometry args={[frame.scrim.w, frame.scrim.h]} />
           <meshBasicMaterial ref={scrimMat} map={SCRIM} transparent opacity={0} depthTest={false} depthWrite={false} toneMapped={false} />
+        </mesh>
+      )}
+      {panel && (
+        <mesh ref={panelMesh} renderOrder={19} visible={false}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial map={PANEL} transparent opacity={0} depthTest={false} depthWrite={false} toneMapped={false} />
         </mesh>
       )}
       {rows.map((r, i) => (

@@ -153,8 +153,8 @@ export function Workstation({
 
       {/* Mac mini (model HD) di kanan monitor + kabel ke monitor */}
       {/* Diputar 180°: port di belakang menghadap dinding, logo & LED di depan */}
-      <Model src={HD.macmini} fit={MAC_FIT} position={[0.46, 0, -0.02]} rotation-y={Math.PI - 0.1} />
-      <Cable from={new THREE.Vector3(0.4, 0.02, -0.07)} to={new THREE.Vector3(0.03, 0.3, -0.08)} />
+      <Model src={HD.macmini} fit={MAC_FIT} position={[0.6, 0, -0.08]} rotation-y={Math.PI - 0.1} />
+      <Cable from={new THREE.Vector3(0.52, 0.02, -0.12)} to={new THREE.Vector3(0.03, 0.3, -0.08)} />
 
       {/* Keyboard mechanical (model HD) & mouse */}
       <Model src={HD.keyboard} fit={KEYB_FIT} position={[-0.02, 0, 0.22]} />

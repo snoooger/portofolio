@@ -84,8 +84,19 @@ const en = {
     lines: ["Open to fullstack & AI", "automation roles,", "and freelance builds."],
     color: YELLOW,
   } as Note,
-  /** Kalimat di layar iPhone (bukan pengulang teks 3D kontak). */
-  phoneNote: "Pick whichever is easiest.",
+  /** Lock screen iPhone: notifikasi yang mengantar ke footer. */
+  phone: { app: "Zaidan", title: "Got a project?", body: "Scroll down — my inbox is open.", date: "Portfolio · 2026" },
+  /** Footer (dibuka setelah Contact): CTA + kontak + kredit. */
+  cta: {
+    a: "Let's build",
+    b: "something that runs itself.",
+    button: "Email me",
+    copy: "Copy",
+    copied: "Copied",
+    note: "say hi!",
+    caption: "Open to fullstack & AI automation roles · freelance builds",
+    top: "Back to the desk",
+  },
   /** Teks 3D: ringkasan tiap section. Detail ada di post-it / benda di scene, jadi tidak diulang. */
   summary: {
     about: { title: "Hi, I'm Zaidan", text: "Fullstack developer & AI automation engineer." },
@@ -98,7 +109,7 @@ const en = {
     experience: { title: "Experience", text: "Four roles, from data analysis to building products end to end." },
     certificates: { title: "Certificates", text: "Nine certificates in security, networking, cloud and AI." },
     education: { title: "Education", text: "B.Eng. in Informatics, Institut Teknologi PLN." },
-    contact: { title: "Let's talk!", text: "Open to fullstack & AI automation roles, and freelance builds." },
+    contact: { title: "Let's talk!", text: "My inbox is one scroll away." },
   } as Record<string, { title: string; text: string }>,
   links: { email: "Email me", linkedin: "LinkedIn", github: "GitHub" },
   footer: `© 2026 ${NAME} · Built with Next.js & three.js`,
@@ -168,7 +179,17 @@ const id: typeof en = {
     lines: ["Terbuka untuk posisi fullstack", "& AI automation,", "juga proyek freelance."],
     color: YELLOW,
   },
-  phoneNote: "Pilih yang paling mudah.",
+  phone: { app: "Zaidan", title: "Punya proyek?", body: "Scroll ke bawah — inbox saya terbuka.", date: "Portofolio · 2026" },
+  cta: {
+    a: "Ayo bangun",
+    b: "sesuatu yang jalan sendiri.",
+    button: "Kirim email",
+    copy: "Salin",
+    copied: "Tersalin",
+    note: "sapa saya!",
+    caption: "Terbuka untuk posisi fullstack & AI automation · proyek freelance",
+    top: "Kembali ke meja",
+  },
   summary: {
     about: { title: "Halo, saya Zaidan", text: "Fullstack developer & AI automation engineer." },
     farmagent: { title: "FarmAgent", text: "Otomasi phone farm untuk akun media sosial." },
@@ -180,7 +201,7 @@ const id: typeof en = {
     experience: { title: "Pengalaman", text: "Empat posisi, dari analisis data sampai membangun produk dari nol." },
     certificates: { title: "Sertifikat", text: "Sembilan sertifikat: keamanan, jaringan, cloud, dan AI." },
     education: { title: "Pendidikan", text: "Sarjana Informatika, Institut Teknologi PLN." },
-    contact: { title: "Ayo ngobrol!", text: "Terbuka untuk posisi fullstack & AI automation, juga proyek freelance." },
+    contact: { title: "Ayo ngobrol!", text: "Inbox saya tinggal satu scroll lagi." },
   },
   links: { email: "Kirim email", linkedin: "LinkedIn", github: "GitHub" },
   footer: `© 2026 ${NAME} · Dibuat dengan Next.js & three.js`,

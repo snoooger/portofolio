@@ -43,6 +43,24 @@ type Row =
 const GAP: Record<Row["kind"], number> = { kicker: 0.035, title: 0.05, body: 0.06, facts: 0.04, item: 0.035 };
 const sstep = THREE.MathUtils.smoothstep;
 
+/** Gradasi vertikal krem: pekat di bawah, transparan di atas (latar teks di layar potret). */
+const SCRIM = (() => {
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  c.width = 4;
+  c.height = 256;
+  const ctx = c.getContext("2d")!;
+  const g = ctx.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, "rgba(242,235,225,0)");
+  g.addColorStop(0.35, "rgba(242,235,225,0.82)");
+  g.addColorStop(1, "rgba(242,235,225,0.94)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+})();
+
 function rowsOf(card: Card): Row[] {
   const rows: Row[] = [{ kind: "kicker", text: card.kicker.toUpperCase() }, { kind: "title", text: card.title }];
   if (card.lines.length) rows.push({ kind: "body", text: card.lines.join(" ") });
@@ -89,16 +107,28 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
         : { x: -0.92 * aspect, y: stop.text!.top ?? 0.5, w: (2 - 2 * OBJECT_FRAC - 0.16) * aspect, s: 1 };
     const anchor = p.clone().addScaledVector(ax.dir, D).addScaledVector(ax.right, box.x * halfH).addScaledVector(ax.up, box.y * halfH);
     const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(ax.right, ax.up, ax.dir.clone().negate()));
-    return { anchor, q, halfH, w: box.w / box.s, s: box.s };
+    // Layar potret: gradasi krem selebar layar di belakang teks (dari tepi bawah, memudar ke atas),
+    // dalam satuan lokal blok (sudah dibagi skala s), relatif terhadap pojok kiri-atas blok.
+    const scrim = portrait
+      ? { cx: (-box.x) / box.s, cy: ((-1.05 + box.y + 0.32) / 2 - box.y) / box.s, w: (2 * aspect + 0.2) / box.s, h: (box.y + 0.32 + 1.05) / box.s }
+      : null;
+    return { anchor, q, halfH, w: box.w / box.s, s: box.s, scrim };
   }, [stop, aspect, portrait]);
 
   const rows = useMemo(() => rowsOf(card), [card]);
-  const th = THEME[(portrait ? stop.text!.portraitTone : undefined) ?? stop.text!.tone ?? "dark"];
+  // Di layar potret teks selalu di atas gradasi krem → nada gelap.
+  const th = THEME[portrait ? "dark" : (stop.text!.tone ?? "dark")];
+  const scrimMat = useRef<THREE.MeshBasicMaterial>(null);
   const refs = useRef<(THREE.Group | null)[]>([]);
 
   useFrame(() => {
     let y = 0;
     const d = f.current - k;
+    if (scrimMat.current) {
+      const a = sstep(d, -0.55, -0.22), b = sstep(d, 0.22, 0.5);
+      scrimMat.current.opacity = a * (1 - b);
+      scrimMat.current.visible = scrimMat.current.opacity > 0.01;
+    }
     refs.current.forEach((g, i) => {
       if (!g) return;
       const a = sstep(d + i * 0.025, -0.55, -0.22); // datang: zoom in dari belakang
@@ -123,6 +153,12 @@ function StopText({ f, k, stop, card, aspect }: { f: Drive; k: number; stop: Des
   const W = frame.w;
   return (
     <group position={frame.anchor} quaternion={frame.q} scale={frame.halfH * frame.s}>
+      {frame.scrim && (
+        <mesh position={[frame.scrim.cx, frame.scrim.cy, -0.02]} renderOrder={19}>
+          <planeGeometry args={[frame.scrim.w, frame.scrim.h]} />
+          <meshBasicMaterial ref={scrimMat} map={SCRIM} transparent opacity={0} depthTest={false} depthWrite={false} toneMapped={false} />
+        </mesh>
+      )}
       {rows.map((r, i) => (
         <group key={i} ref={(g) => void (refs.current[i] = g)} visible={false} userData={r.kind === "facts" ? { h: 0.15 } : {}}>
           {r.kind === "kicker" && (

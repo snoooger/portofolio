@@ -1,14 +1,14 @@
 "use client";
 
-// iPhone yang tergeletak di meja: layar serbaguna untuk section tertentu (di sini: kontak + footer).
-// Baris tautan di layar bisa diklik (hit-test lewat koordinat UV). Bila model HD iPhone sudah disalin ke
+// iPhone yang tergeletak di meja (perhentian Contact): lock screen dengan notifikasi yang mengantar ke
+// footer. Layar bisa diketuk. Bila model HD iPhone sudah disalin ke
 // /assets-3d/sketchfab/iphone.glb, set HAS_IPHONE_MODEL = true; kalau belum, dipakai bodi buatan sendiri.
 import { useEffect, useMemo } from "react";
-import type { ThreeElements, ThreeEvent } from "@react-three/fiber";
+import type { ThreeElements } from "@react-three/fiber";
 import * as THREE from "three";
 import { P } from "../palette";
 import type { Fonts } from "../final/useFonts";
-import { EMAIL, GITHUB, LINKEDIN, NAME, type Copy } from "./copy";
+import type { Copy } from "./copy";
 import { Model, type Fit } from "./Model";
 
 const PW = 0.0767, PH = 0.1596, PD = 0.0083; // iPhone 15 Pro Max (m)
@@ -17,95 +17,82 @@ const IPHONE_SRC = "/assets-3d/sketchfab/iphone.glb";
 const HAS_IPHONE_MODEL = false;
 const IPHONE_FIT: Fit = { axis: "z", size: PH };
 
-/** Baris tautan: posisi y (px tekstur) dipakai untuk menggambar dan untuk hit-test klik. */
-const ROW0 = 640, ROWH = 104;
-
-function openUrl(url: string) {
-  if (url.startsWith("mailto:")) window.location.href = url;
-  else window.open(url, "_blank", "noopener");
-}
-
-function contactScreen(f: Fonts, copy: Copy, links: { label: string; sub: string }[]) {
+/** Lock screen: jam, lalu notifikasi "Punya proyek?" yang mengantar ke footer (CTA & kontak). */
+function lockScreen(f: Fonts, copy: Copy) {
   const c = document.createElement("canvas");
   c.width = SW;
   c.height = SH;
   const ctx = c.getContext("2d")!;
-  const g = ctx.createLinearGradient(0, 0, 0, SH);
-  g.addColorStop(0, "#f6f1e8");
-  g.addColorStop(1, "#efe6d8");
+  // Wallpaper: gradasi hangat terakota → krem dengan lingkaran lembut
+  const g = ctx.createLinearGradient(0, 0, SW * 0.4, SH);
+  g.addColorStop(0, "#c2552f");
+  g.addColorStop(0.55, "#e3a07a");
+  g.addColorStop(1, "#f2e3cf");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, SW, SH);
-  // Status bar + dynamic island
-  ctx.fillStyle = P.ink;
-  ctx.font = `600 26px ${f.sans}`;
-  ctx.fillText("9:41", 58, 62);
+  for (const [x, y, r, a] of [[120, 360, 260, 0.18], [480, 900, 320, 0.14], [300, 1180, 220, 0.12]]) {
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, `rgba(255,248,236,${a})`);
+    rg.addColorStop(1, "rgba(255,248,236,0)");
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, SW, SH);
+  }
+  // Dynamic island + status
+  ctx.fillStyle = "#000";
   ctx.beginPath();
   ctx.roundRect(SW / 2 - 92, 26, 184, 52, 26);
-  ctx.fillStyle = "#000";
   ctx.fill();
-  ctx.fillStyle = P.ink;
+  ctx.fillStyle = "#fff";
   ctx.beginPath();
   ctx.roundRect(SW - 108, 42, 50, 24, 7);
   ctx.fill();
-  // Kartu profil
+  // Tanggal & jam
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = `600 30px ${f.sans}`;
+  ctx.fillText(copy.phone.date, SW / 2, 200);
+  ctx.fillStyle = "#fff";
+  ctx.font = `200px ${f.serif}`;
+  ctx.fillText("9:41", SW / 2, 370);
+  // Notifikasi
+  const nx = 32, ny = 470, nw = SW - 64, nh = 172;
+  ctx.fillStyle = "rgba(255,250,243,0.9)";
+  ctx.beginPath();
+  ctx.roundRect(nx, ny, nw, nh, 40);
+  ctx.fill();
   ctx.fillStyle = P.terracotta;
   ctx.beginPath();
-  ctx.arc(SW / 2, 230, 78, 0, Math.PI * 2);
+  ctx.roundRect(nx + 26, ny + 30, 64, 64, 16);
   ctx.fill();
   ctx.fillStyle = "#fff";
-  ctx.font = `64px ${f.serif}`;
-  ctx.textAlign = "center";
-  ctx.fillText("ZJ", SW / 2, 252);
+  ctx.font = `36px ${f.serif}`;
+  ctx.fillText("ZJ", nx + 58, ny + 74);
+  ctx.textAlign = "left";
+  ctx.fillStyle = P.inkSoft;
+  ctx.font = `600 22px ${f.sans}`;
+  ctx.fillText(copy.phone.app.toUpperCase(), nx + 110, ny + 52);
+  ctx.textAlign = "right";
+  ctx.font = `400 22px ${f.sans}`;
+  ctx.fillText("now", nx + nw - 28, ny + 52);
+  ctx.textAlign = "left";
   ctx.fillStyle = P.ink;
-  ctx.font = `46px ${f.serif}`;
-  ctx.fillText(NAME, SW / 2, 372);
-  ctx.fillStyle = P.terracottaDark;
-  ctx.font = `500 19px ${f.mono}`;
-  ctx.fillText(copy.role.toUpperCase(), SW / 2, 412);
+  ctx.font = `700 30px ${f.sans}`;
+  ctx.fillText(copy.phone.title, nx + 110, ny + 92);
   ctx.fillStyle = P.inkSoft;
   ctx.font = `400 25px ${f.sans}`;
-  ctx.fillText(copy.phoneNote, SW / 2, 520);
-  ctx.textAlign = "left";
-  // Baris tautan (gaya daftar iOS)
-  ctx.fillStyle = "#fffdf9";
-  ctx.beginPath();
-  ctx.roundRect(36, ROW0 - 10, SW - 72, links.length * ROWH + 20, 28);
-  ctx.fill();
-  links.forEach((l, i) => {
-    const y = ROW0 + i * ROWH;
-    if (i) {
-      ctx.fillStyle = "rgba(30,27,24,0.08)";
-      ctx.fillRect(130, y, SW - 166, 2);
-    }
-    ctx.fillStyle = [P.terracotta, "#2f6fa3", "#1e1b18", "#5d9c59"][i % 4];
+  ctx.fillText(copy.phone.body, nx + 110, ny + 128);
+  // Senter & kamera + home bar
+  for (const x of [110, SW - 110]) {
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
     ctx.beginPath();
-    ctx.roundRect(60, y + 24, 54, 54, 14);
+    ctx.arc(x, SH - 150, 48, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#fff";
-    ctx.font = `700 24px ${f.sans}`;
-    ctx.textAlign = "center";
-    ctx.fillText(["@", "in", "</>", "CV"][i % 4], 87, y + 60);
-    ctx.textAlign = "left";
-    ctx.fillStyle = P.ink;
-    ctx.font = `600 27px ${f.sans}`;
-    ctx.fillText(l.label, 134, y + 48);
-    ctx.fillStyle = P.inkSoft;
-    ctx.font = `400 20px ${f.sans}`;
-    ctx.fillText(l.sub, 134, y + 76);
-    ctx.fillStyle = "rgba(30,27,24,0.35)";
-    ctx.font = `600 30px ${f.sans}`;
-    ctx.fillText("›", SW - 76, y + 62);
-  });
-  // Footer
-  ctx.fillStyle = P.inkSoft;
-  ctx.font = `400 17px ${f.sans}`;
-  ctx.textAlign = "center";
-  ctx.fillText(copy.footer, SW / 2, SH - 150);
-  ctx.font = `400 13px ${f.sans}`;
-  const words = copy.credits.split(" · ");
-  words.forEach((w, i) => ctx.fillText(w, SW / 2, SH - 118 + i * 19));
-  ctx.textAlign = "left";
-  ctx.fillStyle = P.ink;
+    ctx.beginPath();
+    ctx.roundRect(x - 10, SH - 168, 20, 36, 6);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#fff";
   ctx.beginPath();
   ctx.roundRect(SW / 2 - 100, SH - 26, 200, 8, 4);
   ctx.fill();
@@ -186,25 +173,9 @@ function Body() {
   );
 }
 
-export function IPhone({ fonts, copy, ...props }: ThreeElements["group"] & { fonts: Fonts; copy: Copy }) {
-  const links = useMemo(
-    () => [
-      { label: copy.links.email, sub: EMAIL, url: `mailto:${EMAIL}` },
-      { label: copy.links.linkedin, sub: "in/zaidanjibranazhar", url: LINKEDIN },
-      { label: copy.links.github, sub: "github.com/snoooger", url: GITHUB },
-    ],
-    [copy],
-  );
-  const screen = useMemo(() => contactScreen(fonts, copy, links), [fonts, copy, links]);
+export function IPhone({ fonts, copy, onOpen, ...props }: ThreeElements["group"] & { fonts: Fonts; copy: Copy; onOpen?: () => void }) {
+  const screen = useMemo(() => lockScreen(fonts, copy), [fonts, copy]);
   useEffect(() => () => screen.dispose(), [screen]);
-
-  const onClick = (e: ThreeEvent<MouseEvent>) => {
-    if (!e.uv) return;
-    e.stopPropagation();
-    const y = (1 - e.uv.y) * SH;
-    const i = Math.floor((y - ROW0) / ROWH);
-    if (i >= 0 && i < links.length) openUrl(links[i].url);
-  };
 
   const screenGeo = useMemo(() => roundedPlane(PW - 0.0034, PH - 0.0034, 0.0098), []);
   useEffect(() => () => screenGeo.dispose(), [screenGeo]);
@@ -212,15 +183,15 @@ export function IPhone({ fonts, copy, ...props }: ThreeElements["group"] & { fon
     <group {...props}>
       {HAS_IPHONE_MODEL ? <Model src={IPHONE_SRC} fit={IPHONE_FIT} /> : <Body />}
       {/* Layar: kontak + footer, baris tautan bisa diklik */}
+      {/* Layar: lock screen; ketuk notifikasi → buka footer (CTA & kontak) */}
       <mesh
         rotation-x={-Math.PI / 2}
         position={[0, PD + 0.0006, 0]}
-        onClick={onClick}
-        onPointerMove={(e) => {
-          const y = e.uv ? (1 - e.uv.y) * SH : -1;
-          const on = y > ROW0 && y < ROW0 + links.length * ROWH;
-          document.body.style.cursor = on ? "pointer" : "";
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen?.();
         }}
+        onPointerOver={() => (document.body.style.cursor = "pointer")}
         onPointerOut={() => (document.body.style.cursor = "")}
       >
         <primitive object={screenGeo} attach="geometry" />

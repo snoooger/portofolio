@@ -349,7 +349,7 @@ function Post({ mode }: { mode: Quality["post"] }) {
   );
 }
 
-export function DeskScene({ f, copy, quality: q, onReady }: { f: Drive; copy: Copy; quality: Quality; onReady?: () => void }) {
+export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: Drive; copy: Copy; quality: Quality; onReady?: () => void; onPhone?: () => void }) {
   const fonts = useFonts();
   const pbr = useRoomPBR();
   const mat = useMemo(() => matTexture("#2f6f55"), []); // hijau cutting mat klasik
@@ -498,11 +498,11 @@ export function DeskScene({ f, copy, quality: q, onReady }: { f: Drive; copy: Co
       ))}
 
       {/* Rak phone farm */}
-      <group position={[rx, TOP, rz]} rotation-y={-0.22}>
+      <group position={[rx, TOP, rz]} rotation-y={0.32}>
         {fonts && <PhoneFarmRack fonts={fonts} run={farmRun} />}
       </group>
-      {/* Binder terbuka di kanan-depan rak; post-it FarmAgent menempel di halaman kanannya, di samping teks 3D */}
-      <group position={[-0.498, 0, -0.029]} rotation-y={-0.15}>
+      {/* Binder terbuka di kiri-depan rak; post-it FarmAgent menempel di halaman kanannya, di samping teks 3D */}
+      <group position={[-1.02, 0, 0.059]} rotation-y={0.35}>
         <Asset src={MODELS.binder} position={[0, TOP, 0]} hide={BINDER_HIDE} />
         {hands && <DeskNote note={copy.projects.farmagent} hands={hands} style={STYLE.farmagent} size={0.13} x={0.098} z={-0.006} rot={0.06} lift={0.0145} />}
       </group>
@@ -545,7 +545,7 @@ export function DeskScene({ f, copy, quality: q, onReady }: { f: Drive; copy: Co
       )}
 
       {/* Kontak & footer: iPhone + kartu nama */}
-      {fonts && <IPhone fonts={fonts} copy={copy} position={[phx, TOP, phz]} rotation-y={-0.2} />}
+      {fonts && <IPhone fonts={fonts} copy={copy} onOpen={onPhone} position={[phx, TOP, phz]} rotation-y={-0.2} />}
       {fonts && <BusinessCard fonts={fonts} role={copy.role} position={[phx + 0.15, TOP + 0.002, phz - 0.1]} rot={0.28} />}
 
       {/* Barang CC0 & personal */}

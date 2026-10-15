@@ -14,6 +14,7 @@ import { DESK_STOPS, deskIndex } from "./stops";
 import { COPY, NAME, type Lang } from "./copy";
 import { DeskHeader } from "./Header";
 import { SeoContent } from "./SeoContent";
+import { DeskFooter } from "./Footer";
 import { QUALITY, detectTier, lowerTier, type Tier } from "./quality";
 
 const N = DESK_STOPS.length;
@@ -43,6 +44,15 @@ export function DeskProto() {
   const [lang, setLang] = useState<Lang>("en");
   const copy = COPY[lang];
   const goTo = (id: string) => scrollToStop(root.current, deskIndex(id), N);
+  const sheet = useRef<HTMLDivElement>(null);
+  const curl = useRef<HTMLDivElement>(null);
+  const lenisOf = () => (window as unknown as { __lenis?: Lenis }).__lenis;
+  /** Batas scroll: akhir perjalanan meja (perhentian terakhir) dan dasar halaman (footer terbuka penuh). */
+  const bounds = () => {
+    const el = root.current!;
+    return { end: el.offsetTop + el.offsetHeight - window.innerHeight, max: document.documentElement.scrollHeight - window.innerHeight };
+  };
+  const openFooter = () => lenisOf()?.scrollTo(bounds().max, { duration: 1.2 });
   const [ready, setReady] = useState(false);
   const { base, tier, decline } = useTier();
   const q = tier ? QUALITY[tier] : null;
@@ -56,6 +66,12 @@ export function DeskProto() {
       timer = window.setTimeout(() => {
         // Jangan snap di tengah scroll terprogram (klik navigasi); frame lambat di HP bisa memicu timer.
         if (lenis?.isScrolling === "smooth") return;
+        // Di antara meja & footer: lengkapi ke salah satunya.
+        const { end, max } = bounds();
+        if (window.scrollY > end + 4 && window.scrollY < max - 4) {
+          lenis?.scrollTo(window.scrollY - end > (max - end) / 2 ? max : end, { duration: 0.8 });
+          return;
+        }
         const k = Math.round(f.current);
         if (Math.abs(f.current - k) > 0.03) scrollToStop(root.current, k, N);
       }, 220);
@@ -70,10 +86,13 @@ export function DeskProto() {
       if (!el || !lenis) return;
       const now = performance.now();
       if (step.busy || now < step.until) return;
-      const k = clampInt(Math.round(f.current) + dir, 0, N - 1);
-      if (k === Math.round(f.current) && Math.abs(f.current - k) < 0.03) return;
+      // Indeks 0…N−1 = perhentian meja, N = footer.
+      const { end, max } = bounds();
+      const cur = window.scrollY > end + 4 ? N : Math.round(f.current);
+      const k = clampInt(cur + dir, 0, N);
+      if (k === cur && (k === N || Math.abs(f.current - k) < 0.03)) return;
       step.busy = true;
-      const y = el.offsetTop + ((el.offsetHeight - window.innerHeight) * k) / (N - 1);
+      const y = k === N ? max : el.offsetTop + ((el.offsetHeight - window.innerHeight) * k) / (N - 1);
       lenis.scrollTo(y, {
         duration: TRAVEL,
         lock: true,
@@ -122,9 +141,30 @@ export function DeskProto() {
     };
   }, [f]);
 
+  // "Kertas" meja terangkat mengikuti scroll setelah perhentian terakhir, memperlihatkan footer.
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const el = sheet.current;
+      if (el && root.current) {
+        const { end, max } = bounds();
+        const over = Math.max(0, Math.min(window.scrollY - end, max - end));
+        const t = max > end ? over / (max - end) : 0;
+        el.style.transform = over > 0 ? `translate3d(0, ${-over}px, 0)` : "";
+        el.style.borderBottomLeftRadius = el.style.borderBottomRightRadius = `${Math.min(1, t * 6) * 36}px`;
+        el.style.boxShadow = over > 0 ? `0 30px 70px rgba(0,0,0,${0.45 * Math.min(1, t * 4)})` : "";
+        if (curl.current) curl.current.style.opacity = String(Math.min(1, t * 5));
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
+    <>
     <main ref={root} style={{ height: `${N * 140}svh` }}>
-      <div className="fixed inset-0" aria-hidden>
+      <div ref={sheet} className="fixed inset-0 z-10 overflow-hidden bg-cream will-change-transform" aria-hidden>
         {q && (
           <Stage
             env="/assets-3d/hdri/museum_of_ethnography_1k.hdr"
@@ -135,9 +175,19 @@ export function DeskProto() {
           >
             {/* FPS rata-rata terlalu rendah beberapa kali berturut-turut → turunkan tier (maks. dua kali). */}
             {ready && <PerformanceMonitor flipflops={3} bounds={() => [36, 58]} onDecline={decline} />}
-            <DeskScene f={f} copy={copy} quality={q} onReady={() => setReady(true)} />
+            <DeskScene f={f} copy={copy} quality={q} onReady={() => setReady(true)} onPhone={openFooter} />
           </Stage>
         )}
+        {/* Pojok kanan bawah tergulung saat kertas terangkat */}
+        <div
+          ref={curl}
+          className="pointer-events-none absolute bottom-0 right-0 size-24 opacity-0 md:size-32"
+          style={{
+            background: "linear-gradient(315deg, transparent 0 46%, rgba(0,0,0,0.18) 50%, #f4efe7 52%, #ffffff 64%, #e6dfd3 78%)",
+            borderTopLeftRadius: "100% 100%",
+            filter: "drop-shadow(-6px -6px 10px rgba(0,0,0,0.18))",
+          }}
+        />
       </div>
 
       <Loader kicker={copy.portfolio} title={NAME} label={copy.loading} ready={ready} />
@@ -147,6 +197,10 @@ export function DeskProto() {
 
       <StopDots f={f} count={N} />
     </main>
+    {/* Ruang scroll untuk membuka footer di bawah "kertas" */}
+    <div aria-hidden style={{ height: "100svh" }} />
+    <DeskFooter copy={copy} onTop={() => lenisOf()?.scrollTo(0, { duration: 2 })} />
+    </>
   );
 }
 

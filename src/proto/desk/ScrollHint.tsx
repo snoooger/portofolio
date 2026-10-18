@@ -26,7 +26,8 @@ export function ScrollHint({ f, count, label, touchLabel, enabled }: { f: DeskDr
         const end = main ? main.offsetTop + main.offsetHeight - window.innerHeight : Infinity;
         // Tampil selama di zona tahan sebuah perhentian; bar terisi seiring scroll menembus zona itu.
         const show = enabled && f.hold >= 0 && window.scrollY < end + 4 && count > 0;
-        if (bar.current && f.hold >= 0) bar.current.style.transform = `scaleX(${f.hold})`;
+        // Bar = jeda baca: terisi selama scroll maju dikunci, penuh = boleh lanjut.
+        if (bar.current && f.hold >= 0) bar.current.style.transform = `scaleX(${f.lock})`;
         d.style.opacity = show ? "1" : "0";
         d.style.transform = `translate(-50%, ${show ? 0 : 10}px)`;
       }
@@ -43,7 +44,7 @@ export function ScrollHint({ f, count, label, touchLabel, enabled }: { f: DeskDr
       className="pointer-events-none fixed bottom-5 left-1/2 z-40 flex items-center gap-2.5 rounded-full border border-white/15 bg-[#1d3a2b]/80 py-2 pl-3 pr-4 text-[#fbf3e3] opacity-0 shadow-[0_10px_30px_-12px_rgba(16,36,26,0.6)] backdrop-blur-md transition-[opacity,transform] duration-500 md:bottom-7"
       style={{ transform: "translate(-50%, 10px)" }}
     >
-      {/* Progres zona tahan: penuh = kamera mulai berpindah ke section berikutnya */}
+      {/* Progres jeda baca: penuh = boleh lanjut ke section berikutnya */}
       <span className="absolute inset-x-3 bottom-[3px] h-[2px] overflow-hidden rounded-full bg-white/15">
         <span ref={bar} className="block h-full w-full origin-left rounded-full bg-[#f5c84c]" style={{ transform: "scaleX(0)" }} />
       </span>

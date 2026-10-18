@@ -6,9 +6,11 @@
 //   mengikuti jari/roda ke perhentian berikutnya.
 // - BATAS: momentum (flick/inersia trackpad) berhenti tepat saat masuk zona tahan sebuah perhentian; gestur
 //   yang sama tidak bisa melewatinya. Pengguna harus scroll lagi (gestur baru) melewati zona tahan.
+// - JEDA BACA: tiba di section baru (maju) → scroll maju dikunci sebentar sesuai panjang teks section itu
+//   (bar di pil "Scroll to explore" terisi). Mundur tetap bebas. Kamera tetap digerakkan scroll, bukan waktu.
 // - Bila berhenti di tengah perjalanan, halaman melengkapi ke section searah gerakan (snap halus).
 // Semua posisi dihitung dari tinggi layar saat ini, jadi tetap tepat di HP saat bilah alamat muncul/hilang.
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type Lenis from "lenis";
 
 /** Porsi jarak antarperhentian yang menjadi zona tahan (sisanya perjalanan kamera). */
@@ -23,6 +25,8 @@ export type DeskDrive = {
   raw: number;
   /** Progres di dalam zona tahan 0–1 (−1 bila sedang dalam perjalanan). */
   hold: number;
+  /** Progres jeda baca 0–1 (1 = boleh lanjut ke section berikutnya). */
+  lock: number;
 };
 
 export type Geom = { top: number; S: number; h: number; end: number; n: number };
@@ -56,7 +60,7 @@ export function driveOf(y: number, g: Geom): DeskDrive {
     const [A, B] = zone(g, s);
     hold = B > A ? Math.min(1, Math.max(0, (y - A) / (B - A))) : 1;
   }
-  return { current, raw, hold };
+  return { current, raw, hold, lock: 1 };
 }
 
 const lenisOf = () => (window as unknown as { __lenis?: Lenis }).__lenis;
@@ -65,26 +69,40 @@ const lenisOf = () => (window as unknown as { __lenis?: Lenis }).__lenis;
  * Menghitung DeskDrive tiap frame & memasang batas momentum + snap pada Lenis.
  * `onFooterGap`: posisi di antara akhir meja & dasar halaman (footer) → lengkapi ke salah satunya.
  */
-export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
+export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number, dwell: (k: number) => number) {
   // Objek stabil yang dimutasi tiap frame (dibaca scene 3D & UI lewat .current, seperti ref).
-  const [f] = useState<DeskDrive>(() => ({ current: 0, raw: 0, hold: 0 }));
+  const [f] = useState<DeskDrive>(() => ({ current: 0, raw: 0, hold: 0, lock: 1 }));
+  // Kunci jeda baca + fungsi lamanya (diperbarui tiap render, mis. saat bahasa berganti).
+  const [lk] = useState(() => ({ start: 0, until: 0 }));
+  const dwellRef = useRef(dwell);
+  useEffect(() => {
+    dwellRef.current = dwell;
+  });
 
   useEffect(() => {
     let raf = 0;
     const loop = () => {
       const el = root.current;
       if (el) Object.assign(f, driveOf(window.scrollY, geom(el, n)));
+      const now = performance.now();
+      f.lock = now < lk.until ? (now - lk.start) / (lk.until - lk.start) : 1;
       raf = requestAnimationFrame(loop);
     };
     loop();
     return () => cancelAnimationFrame(raf);
-  }, [f, root, n]);
+  }, [f, lk, root, n]);
 
   useEffect(() => {
     let lenis: Lenis | undefined;
     let gesture = 0, lastWheel = 0, lastMag = 0;
     let arrived = { k: -1, gesture: -1, dir: 0 };
     let timer = 0;
+    const startLock = (k: number) => {
+      const ms = k > 0 ? dwellRef.current(k) : 0;
+      lk.start = performance.now();
+      lk.until = lk.start + ms;
+    };
+    const locked = () => performance.now() < lk.until;
 
     const virtualScroll = (data: { deltaX: number; deltaY: number; event: Event }) => {
       const e = data.event;
@@ -113,6 +131,8 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
         if (e.cancelable) e.preventDefault();
         return false;
       };
+      // Jeda baca: maju dikunci sampai bar terisi.
+      if (dir > 0 && locked()) return block();
       // Gestur yang sama setelah tiba di sebuah perhentian tidak bisa melanjutkan ke arah yang sama.
       if (arrived.gesture === gesture && arrived.dir === dir) return block();
       const next = cur + d;
@@ -123,6 +143,7 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
         // Masuk zona tahan: berhenti di tepinya, gestur ini selesai.
         const to = dir > 0 ? A + 1 : B - 1;
         arrived = { k, gesture, dir };
+        if (dir > 0) startLock(k);
         if (e.cancelable) e.preventDefault();
         lenis.scrollTo(to, {
           programmatic: false,
@@ -153,10 +174,27 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
         // balik); hanya gerak sangat kecil (kemungkinan tak sengaja) yang dikembalikan.
         const k = Math.floor(d.current);
         const t = d.current - k;
-        const forward = lenis.direction >= 0 ? t > 0.12 : t > 0.88;
+        const ahead = lenis.direction >= 0;
+        const forward = ahead ? t > 0.12 : t > 0.88;
         const to = forward ? zone(g, k + 1)[0] + 1 : zone(g, k)[1] - 1;
-        lenis.scrollTo(to, { duration: 0.55 });
+        lenis.scrollTo(to, { duration: 0.55, onComplete: () => forward && ahead && startLock(k + 1) });
       }, 380);
+    };
+
+    // Keyboard (panah, PageUp/Down, spasi): satu tekan = satu perhentian (n = footer), ikut jeda baca.
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName))) return;
+      const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? (e.shiftKey && e.key === " " ? -1 : 1) : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
+      const el = root.current;
+      if (!dir || !el || !lenis) return;
+      e.preventDefault();
+      if (dir > 0 && locked()) return;
+      const g = geom(el, n);
+      const cur = window.scrollY > g.end + 4 ? n : Math.round(f.current);
+      const k = Math.min(n, Math.max(0, cur + dir));
+      if (k === cur) return;
+      lenis.scrollTo(stopY(el, k, n), { duration: 1.0, lock: true, onComplete: () => dir > 0 && k < n && startLock(k) });
     };
 
     const attach = window.setInterval(() => {
@@ -165,14 +203,16 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
       window.clearInterval(attach);
       lenis.options.virtualScroll = virtualScroll;
       lenis.on("scroll", onScroll);
+      window.addEventListener("keydown", onKey);
     }, 100);
     return () => {
       window.clearInterval(attach);
       window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKey);
       lenis?.off("scroll", onScroll);
       if (lenis) lenis.options.virtualScroll = undefined;
     };
-  }, [root, n]);
+  }, [f, lk, root, n]);
 
   return f;
 }

@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import Lenis from "lenis";
-import { gsap, ScrollTrigger, prefersReducedMotion } from "@/lib/gsap";
+import { gsap, ScrollTrigger } from "@/lib/gsap";
 
 /** Lenis tersinkron dengan ScrollTrigger (sama seperti situs utama). */
 export function ProtoScroll() {
   useEffect(() => {
-    if (prefersReducedMotion()) return;
+    // Reduced motion tidak mematikan Lenis: Lenis sendiri membuat scroll instan (tanpa animasi halus),
+    // sementara jeda baca & batas per section di meja tetap berlaku.
     // syncTouch: sentuhan juga ditangani Lenis, jadi batas momentum di tiap perhentian meja berlaku di HP.
     const lenis = new Lenis({ lerp: 0.12, smoothWheel: true, syncTouch: true, syncTouchLerp: 0.1, touchMultiplier: 1.15 });
     lenis.on("scroll", ScrollTrigger.update);

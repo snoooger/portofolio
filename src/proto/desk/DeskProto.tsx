@@ -18,14 +18,13 @@ import { DeskFooter } from "./Footer";
 import { Logo } from "./Logo";
 import { ScrollHint } from "./ScrollHint";
 import { RenderLoop } from "./RenderLoop";
-import { STOP_SVH, stopY, useDeskScroll } from "./deskScroll";
+import { STOP_SVH, useDeskScroll } from "./deskScroll";
 import { QUALITY, detectTier, lowerTier, type Tier } from "./quality";
 
 const N = DESK_STOPS.length;
 const FARM = deskIndex("farmagent");
 /** Layar HP di rak FarmAgent terus menggulir selama perhentian itu terlihat. */
 const farmBusy = (v: number) => v > FARM - 0.5 && v < FARM + 0.8;
-const clampInt = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
 // Tier perangkat dideteksi sekali di klien (null saat render server).
 let detected: Tier | null = null;
@@ -47,11 +46,17 @@ function useTier() {
 
 export function DeskProto() {
   const root = useRef<HTMLElement>(null);
-  // Scroll jacking berbasis scroll: zona tahan di tiap perhentian + batas momentum (lihat deskScroll.ts).
-  const drive = useDeskScroll(root, N);
-  const f = drive;
   const [lang, setLang] = useState<Lang>("en");
   const copy = COPY[lang];
+  // Jeda baca tiap section ≈ waktu membaca teks ringkasannya (dibatasi 1,2–2,4 detik).
+  const dwell = (k: number) => {
+    const sm = copy.summary[DESK_STOPS[k]?.id];
+    if (!sm) return 1200;
+    const words = `${sm.title} ${sm.text}`.split(/\s+/).length;
+    return Math.min(2400, Math.max(1200, 900 + words * 70));
+  };
+  // Scroll jacking: zona tahan + batas momentum + jeda baca di tiap perhentian (lihat deskScroll.ts).
+  const f = useDeskScroll(root, N, dwell);
   const goTo = (id: string) => scrollToStop(root.current, deskIndex(id), N);
   const sheet = useRef<HTMLDivElement>(null);
   const curl = useRef<HTMLDivElement>(null);
@@ -66,23 +71,6 @@ export function DeskProto() {
   const { active: loading } = useProgress();
   const { base, tier, decline } = useTier();
   const q = tier ? QUALITY[tier] : null;
-
-  // Tombol keyboard (panah, PageUp/Down, spasi): satu tekan = satu perhentian (N = footer).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName))) return;
-      const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? (e.shiftKey && e.key === " " ? -1 : 1) : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
-      const el = root.current, lenis = lenisOf();
-      if (!dir || !el || !lenis) return;
-      e.preventDefault();
-      const cur = window.scrollY > bounds().end + 4 ? N : Math.round(f.current);
-      const k = clampInt(cur + dir, 0, N);
-      if (k !== cur) lenis.scrollTo(stopY(el, k, N), { duration: 1.0, lock: true });
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [f]);
 
   // "Kertas" meja terangkat mengikuti scroll setelah perhentian terakhir, memperlihatkan footer.
   useEffect(() => {

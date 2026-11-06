@@ -13,13 +13,14 @@ const corners = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), 
 export function Poppable({
   id,
   stop,
+  order = 0,
   w,
   h,
   image,
+  pages,
   alt,
   color,
   kind = "paper",
-  primaryFor,
   enabled = true,
   lift = 0.004,
   onPick,
@@ -27,14 +28,17 @@ export function Poppable({
 }: {
   id: string;
   stop: string | (() => string);
+  /** Urutan di dalam section (popup berpindah sesuai urutan ini). */
+  order?: number;
   w: number;
   h: number;
-  image: () => CanvasImageSource | null;
-  alt: string | (() => string);
+  /** Satu halaman (gambar benda). */
+  image?: () => CanvasImageSource | null;
+  /** Beberapa halaman (mis. lembar-lembar catatan sebuah proyek); halaman 0 = yang terlihat. */
+  pages?: () => CanvasImageSource[];
+  alt: string | ((page: number) => string);
   color?: string | (() => string | undefined);
   kind?: PopItem["kind"];
-  /** Jadikan item utama perhentian ini (tombol "Baca catatan"). */
-  primaryFor?: string;
   enabled?: boolean;
   /** Seberapa jauh benda terangkat (sumbu z lokal) saat disorot. */
   lift?: number;
@@ -46,9 +50,9 @@ export function Poppable({
   const inner = useRef<THREE.Group>(null);
   const get = useThree((s) => s.get);
   const hover = useRef(false);
-  const latest = useRef({ stop, alt, color, image, w, h });
+  const latest = useRef({ stop, alt, color, image, pages, w, h });
   useEffect(() => {
-    latest.current = { stop, alt, color, image, w, h };
+    latest.current = { stop, alt, color, image, pages, w, h };
   });
 
   useEffect(() => {
@@ -57,9 +61,15 @@ export function Poppable({
       id,
       kind,
       stop: () => (typeof latest.current.stop === "function" ? latest.current.stop() : latest.current.stop),
-      image: () => latest.current.image(),
+      order,
+      pages: () => {
+        const L = latest.current;
+        if (L.pages) return L.pages();
+        const im = L.image?.();
+        return im ? [im] : [];
+      },
       aspect: () => latest.current.w / latest.current.h,
-      alt: () => (typeof latest.current.alt === "function" ? latest.current.alt() : latest.current.alt),
+      alt: (page) => (typeof latest.current.alt === "function" ? latest.current.alt(page) : latest.current.alt),
       color: () => (typeof latest.current.color === "function" ? latest.current.color() : latest.current.color),
       quad: () => {
         const grp = g.current;
@@ -88,8 +98,8 @@ export function Poppable({
         get().invalidate();
       },
     };
-    return popup.register(item, primaryFor);
-  }, [id, kind, primaryFor, enabled, get]);
+    return popup.register(item);
+  }, [id, kind, order, enabled, get]);
 
   useFrame((_, dt) => {
     const i = inner.current;
@@ -105,7 +115,7 @@ export function Poppable({
     if (!enabled) return;
     e.stopPropagation();
     if (onPick?.()) return;
-    popup.open(id);
+    popup.openItem(id);
   };
   return (
     <group

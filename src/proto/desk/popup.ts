@@ -1,20 +1,23 @@
 "use client";
 
 // Penghubung post-it 3D ↔ popup DOM. Tiap benda bertulisan (post-it, kartu, sertifikat, layar HP)
-// mendaftar sebagai "item" dengan: gambar kanvas/teksturnya, cara mengukur posisinya di layar (quad
-// hasil proyeksi), dan cara menyembunyikan dirinya. Popup menerbangkan salinan gambar dari posisi
-// benda ke tengah layar, dan kembali ke posisi yang sama saat ditutup.
+// mendaftar sebagai "item" milik sebuah section (stop): gambar halamannya, cara mengukur posisinya di
+// layar (quad hasil proyeksi), dan cara menyembunyikan dirinya. Popup sebuah section berisi semua
+// halaman semua item section itu (urut `order`), dengan tombol sebelumnya/berikutnya/tutup.
 
 export type Quad = { cx: number; cy: number; w: number; h: number; angle: number };
 
 export type PopItem = {
   id: string;
-  /** Perhentian (section) pemilik benda ini — menentukan keterangan di popup. */
+  /** Section pemilik benda ini (boleh berubah, mis. bantalan post-it monitor). */
   stop: () => string;
-  image: () => CanvasImageSource | null;
+  /** Urutan di dalam section. */
+  order: number;
+  /** Halaman gambar (halaman 0 = yang terlihat di benda 3D). */
+  pages: () => CanvasImageSource[];
   /** Lebar/tinggi benda (rasio gambar di popup). */
   aspect: () => number;
-  alt: () => string;
+  alt: (page: number) => string;
   color?: () => string | undefined;
   /** Bentuk popup: kertas (post-it, sedikit miring) atau layar (sudut membulat, tegak). */
   kind?: "paper" | "screen";
@@ -22,41 +25,64 @@ export type PopItem = {
   setHidden: (hidden: boolean) => void;
 };
 
-type State = { open: PopItem | null };
+export type Entry = { item: PopItem; page: number };
+type Open = { stop: string; entries: Entry[]; start: number };
+
 const items = new Map<string, PopItem>();
-/** Item utama tiap perhentian (dibuka oleh tombol "Baca catatan"). */
-const primary = new Map<string, string>();
-let state: State = { open: null };
+let open: Open | null = null;
+/** Permintaan tutup dari luar (mis. pengguna scroll saat popup terbuka) + aksi setelahnya. */
+let closeReq: (() => void) | null = null;
 const subs = new Set<() => void>();
 const emit = () => subs.forEach((f) => f());
 
+function entriesOf(stop: string): Entry[] {
+  return [...items.values()]
+    .filter((it) => it.stop() === stop)
+    .sort((a, b) => a.order - b.order)
+    .flatMap((item) => item.pages().map((_, page) => ({ item, page })));
+}
+
 export const popup = {
-  register(item: PopItem, primaryFor?: string) {
+  register(item: PopItem) {
     items.set(item.id, item);
-    if (primaryFor) primary.set(primaryFor, item.id);
     emit();
     return () => {
       if (items.get(item.id) === item) items.delete(item.id);
-      if (primaryFor && primary.get(primaryFor) === item.id) primary.delete(primaryFor);
       emit();
     };
   },
-  open(id: string) {
+  /** Buka semua catatan sebuah section, mulai dari item `startId` (bila ada). */
+  openSection(stop: string, startId?: string) {
+    if (open) return false;
+    const entries = entriesOf(stop);
+    if (!entries.length) return false;
+    const start = Math.max(0, startId ? entries.findIndex((e) => e.item.id === startId) : 0);
+    open = { stop, entries, start };
+    emit();
+    return true;
+  },
+  /** Buka section milik item yang diklik. */
+  openItem(id: string) {
     const it = items.get(id);
-    if (!it || state.open || !it.image()) return;
-    state = { open: it };
+    if (it) popup.openSection(it.stop(), id);
+  },
+  hasSection: (stop: string) => [...items.values()].some((it) => it.stop() === stop),
+  /** Dipanggil NotePopup setelah animasi tutup selesai. */
+  closed() {
+    open = null;
+    const r = closeReq;
+    closeReq = null;
+    emit();
+    r?.();
+  },
+  /** Minta popup menutup (dengan animasi), lalu jalankan `then`. */
+  requestClose(then?: () => void) {
+    if (!open) return then?.();
+    closeReq = then ?? (() => {});
     emit();
   },
-  openPrimary(stop: string) {
-    const id = primary.get(stop);
-    if (id) popup.open(id);
-  },
-  hasPrimary: (stop: string) => primary.has(stop),
-  close() {
-    state = { open: null };
-    emit();
-  },
-  get: () => state,
+  closeRequested: () => closeReq !== null,
+  get: () => open,
   subscribe(f: () => void) {
     subs.add(f);
     return () => void subs.delete(f);

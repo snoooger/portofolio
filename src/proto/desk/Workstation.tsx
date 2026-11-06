@@ -26,9 +26,9 @@ const SCREEN_GLOW = ["#e9dcc0", "#6d5fb0", "#9fb3d6", "#d9d3ca"];
 RectAreaLightUniformsLib.init(); // sekali per modul; wajib untuk RectAreaLight di WebGLRenderer
 
 /** Tumpukan post-it yang lembar atasnya berganti mengikuti `index`. */
-export type NoteMeta = { stop: string; alt: string; color?: string };
+export type NoteMeta = { stop: string; alts: string[]; color?: string };
 
-export function NotePad({ notes, meta, index, size = 0.12, ...props }: ThreeElements["group"] & { notes: THREE.Texture[]; meta: NoteMeta[]; index: Drive; size?: number }) {
+export function NotePad({ notes, meta, index, size = 0.12, ...props }: ThreeElements["group"] & { notes: THREE.Texture[][]; meta: NoteMeta[]; index: Drive; size?: number }) {
   const top = useRef<THREE.MeshStandardMaterial>(null);
   const fallMat = useRef<THREE.MeshStandardMaterial>(null);
   const pivot = useRef<THREE.Group>(null);
@@ -51,8 +51,8 @@ export function NotePad({ notes, meta, index, size = 0.12, ...props }: ThreeElem
       s.prev = s.cur;
       s.cur = want;
       s.t = s.prev < 0 ? 1 : 0;
-      if (top.current) top.current.map = notes[want];
-      if (fallMat.current && s.prev >= 0) fallMat.current.map = notes[s.prev];
+      if (top.current) top.current.map = notes[want][0];
+      if (fallMat.current && s.prev >= 0) fallMat.current.map = notes[s.prev][0];
     }
     s.t = Math.min(1, s.t + dt / 1.15);
     const g = pivot.current, m = sheet.current;
@@ -95,14 +95,13 @@ export function NotePad({ notes, meta, index, size = 0.12, ...props }: ThreeElem
         w={size}
         h={size}
         lift={0.002}
-        image={() => notes[Math.max(0, state.current.cur)].image as HTMLCanvasElement}
-        alt={() => meta[Math.max(0, state.current.cur)].alt}
+        pages={() => notes[Math.max(0, state.current.cur)].map((t) => t.image as HTMLCanvasElement)}
+        alt={(i) => meta[Math.max(0, state.current.cur)].alts[i] ?? ""}
         color={() => meta[Math.max(0, state.current.cur)].color}
-        primaryFor="monitor"
       >
         <mesh>
           <planeGeometry args={[size, size]} />
-          <meshStandardMaterial ref={top} map={notes[0]} roughness={0.85} />
+          <meshStandardMaterial ref={top} map={notes[0][0]} roughness={0.85} />
         </mesh>
       </Poppable>
       {/* Selotip menjembatani tepi atas post-it dan bezel bawah monitor */}
@@ -114,7 +113,7 @@ export function NotePad({ notes, meta, index, size = 0.12, ...props }: ThreeElem
       <group ref={pivot} visible={false}>
         <mesh ref={sheet} castShadow receiveShadow>
           <planeGeometry args={[size, size]} />
-          <meshStandardMaterial ref={fallMat} map={notes[0]} roughness={0.85} side={THREE.DoubleSide} />
+          <meshStandardMaterial ref={fallMat} map={notes[0][0]} roughness={0.85} side={THREE.DoubleSide} />
         </mesh>
       </group>
     </group>
@@ -130,7 +129,7 @@ export function Workstation({
   noteIndex,
   glow = false,
   ...props
-}: ThreeElements["group"] & { fonts: Fonts; screen: Drive; scroll: Drive; notes: THREE.Texture[]; noteMeta: NoteMeta[]; noteIndex: Drive; glow?: boolean }) {
+}: ThreeElements["group"] & { fonts: Fonts; screen: Drive; scroll: Drive; notes: THREE.Texture[][]; noteMeta: NoteMeta[]; noteIndex: Drive; glow?: boolean }) {
   const area = useRef<THREE.RectAreaLight>(null);
   const panel = useRef<THREE.Mesh | null>(null);
   const placed = useRef(false);

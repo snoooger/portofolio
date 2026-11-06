@@ -24,8 +24,10 @@ npm run build && npm run start
 | `src/proto/desk/quality.ts` | Tier kualitas otomatis (high/mid/low) per perangkat; uji dengan `?q=low\|mid\|high` |
 | `public/assets-3d/` | Model (Sketchfab CC BY 4.0, Poly Haven CC0), tekstur, HDRI, gambar sertifikat |
 
-- Penjelasan ada di benda tiap section: klik post-it/kartu/layar (atau tombol "Open note") → popup, tombol tutup → kembali ke tempatnya.
-- Scroll bebas & ringan, snap lembut ke section terdekat setelah berhenti.
+- Penjelasan hanya ada di post-it/kartu/layar tiap section. Tiba di section → catatannya terbuka otomatis sebagai popup
+  (‹ › untuk pindah catatan, tutup → kembali ke tempatnya), dengan efek suara kertas (WebAudio, `sfx.ts`).
+  Isi catatan per proyek (berhalaman) ada di `copy.ts` → `notes`.
+- Scroll per halaman: satu gestur (roda/trackpad/swipe/panah) = tepat satu section; inersia trackpad tidak bisa melompati section.
 - Tangkapan layar situs live ada di `public/assets-3d/sites/` (perbarui bila situsnya berubah).
 - Keamanan: CSP & header keamanan di `next.config.ts`.
 

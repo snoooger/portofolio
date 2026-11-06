@@ -9,7 +9,6 @@ import * as THREE from "three";
 import type { PerspectiveCamera } from "three";
 import { P } from "../palette";
 import { matTexture, plainPaperTexture } from "../textures";
-import { stopMix } from "./deskScroll";
 import { Pencil, Sheet } from "../objects/DeskProps";
 import { Asset, MODELS } from "../hd/Asset";
 import { useFonts, type Fonts } from "../final/useFonts";
@@ -65,7 +64,7 @@ const STYLE: Record<string, NoteStyle> = {
 /** Teks alternatif post-it (pembaca layar di popup). */
 const noteAlt = (n: Note) => [n.title, ...n.lines, ...(n.facts ?? []).map((x) => `${x.v} ${x.k}`)].join(". ");
 /** Data popup sebuah benda: id unik, section pemilik, teks alternatif, item utama section. */
-type Pop = { id: string; stop: string; alt: string; primaryFor?: string };
+type Pop = { id: string; stop: string; alt: string; order?: number };
 const CERT_NAMES = ["Bootcamp", "Google", "Microsoft Azure", "Coding Studio — Cyber Security", "Huawei HCIA", "Coding Studio — Network", "Coding Studio — Pentest", "Coding Studio — Linux", "Microsoft Office Specialist"];
 
 const PEG_FIT: Fit = { axis: "z", size: 2.2 };
@@ -94,9 +93,12 @@ function PostIt({
   size = 0.1,
   tape = false,
   pop,
+  more,
   ...props
 }: {
   note: Note;
+  /** Halaman tambahan (popup), gaya tulisan sama. */
+  more?: Note[];
   hands: HandFamilies;
   style: NoteStyle;
   size?: number;
@@ -107,9 +109,19 @@ function PostIt({
 }) {
   const t = useMemo(() => postIt(note, hands, style), [note, hands, style]);
   useEffect(() => () => t.dispose(), [t]);
+  const extra = useMemo(() => (more ?? []).map((n) => postIt(n, hands, style)), [more, hands, style]);
+  useEffect(() => () => extra.forEach((x) => x.dispose()), [extra]);
+  const all = [note, ...(more ?? [])];
   return (
     <group {...props}>
-      <Poppable {...pop} w={size} h={size} image={() => t.image as HTMLCanvasElement} color={note.color ?? "#F6DD7A"}>
+      <Poppable
+        {...pop}
+        alt={(i) => (i === 0 ? pop.alt : noteAlt(all[i] ?? note))}
+        w={size}
+        h={size}
+        pages={() => [t, ...extra].map((x) => x.image as HTMLCanvasElement)}
+        color={note.color ?? "#F6DD7A"}
+      >
         <mesh castShadow receiveShadow>
           <boxGeometry args={[size, size, 0.0008]} />
           {[0, 1, 2, 3, 5].map((i) => (
@@ -130,7 +142,7 @@ function StatsPostIt({ copy, hands, size = 0.19, ...props }: { copy: Copy; hands
   const fs = copy.farmStats;
   return (
     <group {...props}>
-      <Poppable id="farm-stats" stop="farmagent" w={size} h={size} color="#C9DDB0" image={() => t.image as HTMLCanvasElement}
+      <Poppable id="farm-stats" stop="farmagent" order={2} w={size} h={size} color="#C9DDB0" image={() => t.image as HTMLCanvasElement}
         alt={`${fs.title}. ${fs.views} ${fs.viewsLabel}. ${fs.followers} ${fs.followersLabel}. ${fs.scope}`}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[size, size, 0.0008]} />
@@ -151,7 +163,7 @@ function ToolPostIt({ tool, hands, size = 0.12, ...props }: { tool: (typeof TOOL
   useEffect(() => () => t.dispose(), [t]);
   return (
     <group {...props}>
-      <Poppable id={`tool-${tool.id}`} stop="experience" w={size} h={size} color={tool.paper} image={() => t.image as HTMLCanvasElement} alt={tool.label}>
+      <Poppable id={`tool-${tool.id}`} stop="tools" order={TOOLS.indexOf(tool)} w={size} h={size} color={tool.paper} image={() => t.image as HTMLCanvasElement} alt={tool.label}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[size, size, 0.0008]} />
         {[0, 1, 2, 3, 5].map((i) => (
@@ -172,7 +184,7 @@ function EduPostIt({ copy, hands, size = 0.18, ...props }: { copy: Copy; hands: 
   const color = copy.education.color ?? "#BFD7E6";
   return (
     <group {...props}>
-      <Poppable id="edu" stop="education" primaryFor="education" w={size} h={size} color={color} image={() => t.image as HTMLCanvasElement} alt={noteAlt(copy.education)}>
+      <Poppable id="edu" stop="education" order={0} w={size} h={size} color={color} image={() => t.image as HTMLCanvasElement} alt={noteAlt(copy.education)}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[size, size, 0.0008]} />
         {[0, 1, 2, 3, 5].map((i) => (
@@ -195,7 +207,7 @@ function CalendarPage({ copy, hands, fonts, w = 0.17, ...props }: { copy: Copy; 
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group {...props}>
-      <Poppable id="calendar" stop="education" w={w} h={h} color="#fbf7f1" image={() => t.image as HTMLCanvasElement} alt={`${copy.calendar.note} — September 2026`}>
+      <Poppable id="calendar" stop="education" order={1} w={w} h={h} color="#fbf7f1" image={() => t.image as HTMLCanvasElement} alt={`${copy.calendar.note} — September 2026`}>
       <mesh geometry={geo} castShadow receiveShadow>
         <meshStandardMaterial
           map={t}
@@ -455,10 +467,10 @@ export function DeskScene({
   const hands = useHands();
   const monitorNotes = useMemo(() => {
     if (!hands) return null;
-    return (["sonar", "promptedsite", "viralengine", "security"] as const).map((k) => postIt(copy.projects[k], hands, STYLE[k]));
+    return (["sonar", "promptedsite", "viralengine", "security"] as const).map((k) => copy.notes[k].map((n) => postIt(n, hands, STYLE[k])));
   }, [hands, copy]);
   const noteMeta = useMemo<NoteMeta[]>(
-    () => (["sonar", "promptedsite", "viralengine", "security"] as const).map((k) => ({ stop: k, alt: noteAlt(copy.projects[k]), color: copy.projects[k].color })),
+    () => (["sonar", "promptedsite", "viralengine", "security"] as const).map((k) => ({ stop: k, alts: copy.notes[k].map(noteAlt), color: copy.notes[k][0].color })),
     [copy],
   );
   const certImages = useTexture(CERT_IMAGES.map((c) => c.src));
@@ -481,7 +493,7 @@ export function DeskScene({
   useEffect(() => {
     if (fonts && hands) onReady?.();
   }, [fonts, hands, onReady]);
-  useEffect(() => () => monitorNotes?.forEach((t) => t.dispose()), [monitorNotes]);
+  useEffect(() => () => monitorNotes?.flat().forEach((t) => t.dispose()), [monitorNotes]);
   useEffect(
     () => () => {
       if (board) board.jobs.forEach((t) => t.dispose());
@@ -494,6 +506,7 @@ export function DeskScene({
   const screen = useRef(-1);
   const noteIdx = useRef(0);
   const galleryScroll = useRef(0);
+  const autoScroll = useRef({ si: -2, t0: -1 });
   const look = useRef(new THREE.Vector3(...DESK_STOPS[0].look));
   // Pose tiap perhentian untuk layar lebar [0] dan potret [1].
   const vecs = useMemo(
@@ -508,8 +521,10 @@ export function DeskScene({
   useFrame((state, dt) => {
     const v = f.current;
     const { camera, pointer } = state;
-    // f sudah diam di zona tahan tiap perhentian (deskScroll), jadi kamera bergerak hampir sepanjang perjalanan.
-    const { a, b, t } = stopMix(v, DESK_STOPS.length, 0.08);
+    // Perpindahan section sudah dianimasikan (ease in-out) oleh deskScroll → interpolasi linear di sini.
+    const a = Math.min(DESK_STOPS.length - 1, Math.max(0, Math.floor(v)));
+    const b = Math.min(DESK_STOPS.length - 1, a + 1);
+    const t = v - a;
     const { p, l } = tmp.current;
     const V = vecs[(camera as THREE.PerspectiveCamera).aspect < 1 ? 1 : 0];
     p.lerpVectors(V[a].p, V[b].p, t);
@@ -563,9 +578,21 @@ export function DeskScene({
     noteIdx.current = THREE.MathUtils.clamp(v - I.sonar, 0, 3);
     // Halaman situs di monitor (Sonar, PromptedSite) ikut bergulir mengikuti scroll di section-nya.
     const si = Math.round(screen.current);
-    // Tiba di section → halaman di posisi teratas (hero situs); scroll lanjut → halaman ikut digulir
-    // sampai bawah tepat sebelum layar berganti ke proyek berikutnya.
-    galleryScroll.current = THREE.MathUtils.clamp((f.raw - (I.sonar + si)) * 2.1, 0, 1);
+    // Situs live di monitor: tiba di section → mulai dari hero, lalu halaman menggulir sendiri pelan-pelan
+    // (seperti sedang dibaca) selama kamera berhenti di sana. Ganti proyek → mulai lagi dari atas.
+    const auto = autoScroll.current;
+    if (si !== auto.si) {
+      auto.si = si;
+      auto.t0 = -1;
+      galleryScroll.current = 0;
+    }
+    if (si >= 0 && si < 2 && Math.abs(f.raw - (I.sonar + si)) < 0.01) {
+      const now = performance.now();
+      if (auto.t0 < 0) auto.t0 = now;
+      const k = THREE.MathUtils.clamp((now - auto.t0 - 1600) / (si === 0 ? 18000 : 15000), 0, 1);
+      galleryScroll.current = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      if (k < 1) state.invalidate(); // frameloop "demand": terus render selama halaman bergulir
+    } else auto.t0 = -1;
   });
 
   const [rx, rz] = SPOT.rack;
@@ -640,12 +667,13 @@ export function DeskScene({
         {fonts && <PhoneFarmRack fonts={fonts} run={farmRun} />}
         {hands && (
           <PostIt
-            note={copy.projects.farmagent}
+            note={copy.notes.farmagent[0]}
+            more={copy.notes.farmagent.slice(1)}
             hands={hands}
             style={STYLE.farmagent}
             size={0.19}
             tape
-            pop={{ id: "farmagent", stop: "farmagent", primaryFor: "farmagent", alt: noteAlt(copy.projects.farmagent) }}
+            pop={{ id: "farmagent", stop: "farmagent", order: 0, alt: noteAlt(copy.notes.farmagent[0]) }}
             position={[-0.12, PLATE.y + 0.004, RACK.D / 2 + 0.0045]}
             rotation={[0, 0, 0.03]}
           />
@@ -673,16 +701,16 @@ export function DeskScene({
       <Pencil color="#f2c12e" eraser position={[px - 0.03, TOP + 0.006, pz + 0.215]} rotation-y={0.1} scale={0.13} />
       {hands && (
         <>
-          <DeskNote pop={{ id: "about0", stop: "about", alt: noteAlt(copy.about[0]) }} note={copy.about[0]} hands={hands} style={STYLE.about0} size={0.15} x={ax + 0.01} z={az - 0.075} rot={0.07} lift={0.002} />
-          <DeskNote pop={{ id: "about1", stop: "about", alt: noteAlt(copy.about[1]) }} note={copy.about[1]} hands={hands} style={STYLE.about1} size={0.075} x={ax - 0.075} z={az + 0.105} rot={-0.12} lift={0.0025} />
-          <DeskNote pop={{ id: "about2", stop: "about", alt: noteAlt(copy.about[2]) }} note={copy.about[2]} hands={hands} style={STYLE.about2} size={0.075} x={ax + 0.012} z={az + 0.125} rot={0.06} lift={0.003} />
-          <DeskNote pop={{ id: "about3", stop: "about", alt: noteAlt(copy.about[3]) }} note={copy.about[3]} hands={hands} style={STYLE.about3} size={0.075} x={ax + 0.098} z={az + 0.098} rot={0.16} lift={0.0035} />
+          <DeskNote pop={{ id: "about0", stop: "about", order: 1, alt: noteAlt(copy.about[0]) }} note={copy.about[0]} hands={hands} style={STYLE.about0} size={0.15} x={ax + 0.01} z={az - 0.075} rot={0.07} lift={0.002} />
+          <DeskNote pop={{ id: "about1", stop: "about", order: 2, alt: noteAlt(copy.about[1]) }} note={copy.about[1]} hands={hands} style={STYLE.about1} size={0.075} x={ax - 0.075} z={az + 0.105} rot={-0.12} lift={0.0025} />
+          <DeskNote pop={{ id: "about2", stop: "about", order: 3, alt: noteAlt(copy.about[2]) }} note={copy.about[2]} hands={hands} style={STYLE.about2} size={0.075} x={ax + 0.012} z={az + 0.125} rot={0.06} lift={0.003} />
+          <DeskNote pop={{ id: "about3", stop: "about", order: 4, alt: noteAlt(copy.about[3]) }} note={copy.about[3]} hands={hands} style={STYLE.about3} size={0.075} x={ax + 0.098} z={az + 0.098} rot={0.16} lift={0.0035} />
 
           {/* Skills: tiga post-it saling tumpang tindih sedikit */}
           {copy.skills.map((n, i) => (
             <DeskNote
               key={n.title}
-              pop={{ id: `skill${i}`, stop: "skills", primaryFor: i === 0 ? "skills" : undefined, alt: noteAlt(n) }}
+              pop={{ id: `skill${i}`, stop: "skills", order: i, alt: noteAlt(n) }}
               note={n}
               hands={hands}
               style={STYLE[`skill${i}`]}
@@ -717,7 +745,7 @@ export function DeskScene({
           {board.jobs.map((m, i) => (
             <Pinned
               key={i}
-              pop={{ id: `job${i}`, stop: "experience", primaryFor: i === 0 ? "experience" : undefined, alt: `${copy.jobs[i].role} — ${copy.jobs[i].org} (${copy.jobs[i].period}). ${copy.jobs[i].line}` }}
+              pop={{ id: `job${i}`, stop: "experience", order: i, alt: `${copy.jobs[i].role} — ${copy.jobs[i].org} (${copy.jobs[i].period}). ${copy.jobs[i].line}` }}
               map={m}
               w={0.3}
               h={0.187}
@@ -730,7 +758,7 @@ export function DeskScene({
             return (
               <Pinned
                 key={c.src}
-                pop={{ id: `cert${i}`, stop: "certificates", alt: `Certificate — ${CERT_NAMES[i]}` }}
+                pop={{ id: `cert${i}`, stop: "certificates", order: i + 1, alt: `Certificate — ${CERT_NAMES[i]}` }}
                 map={certImages[i]}
                 w={w}
                 h={h}
@@ -756,7 +784,7 @@ export function DeskScene({
           ))}
           <PostIt
             note={copy.certificates}
-            pop={{ id: "certificates", stop: "certificates", primaryFor: "certificates", alt: noteAlt(copy.certificates) }}
+            pop={{ id: "certificates", stop: "certificates", order: 0, alt: noteAlt(copy.certificates) }}
             hands={hands}
             style={STYLE.certificates}
             size={0.18}

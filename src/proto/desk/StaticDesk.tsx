@@ -41,7 +41,6 @@ export function StaticDesk({ copy, lang, setLang, music }: { copy: Copy; lang: L
           {/* Poster hanya di layar ≥640px (HP: langsung ke isi, hemat data & LCP dari teks). */}
           <picture>
             <source media="(max-width: 639px)" srcSet="data:image/gif;base64,R0lGODlhAQABAIAAAAAAACH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
-            {/* eslint-disable-next-line @next/next/no-img-element -- poster statis kecil, sudah webp & responsif */}
             <img
               src="/assets-3d/poster.webp"
               srcSet="/assets-3d/poster-800.webp 800w, /assets-3d/poster.webp 1200w"

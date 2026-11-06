@@ -567,10 +567,19 @@ export function postIt(note: Note, hands: HandFamilies, style: NoteStyle, w = 76
   const lineGap = bigTitle ? h * 0.115 : h * 0.097;
   const bullet = style.bullets ?? "none";
   const indent = bullet === "none" ? 0 : w * 0.06;
-  for (const l of note.lines) {
-    const s = fit(l, lineSize, w - pad * 2 - indent);
+  for (const raw of note.lines) {
+    // Baris diawali spasi = lanjutan baris sebelumnya: tanpa bullet, menjorok sejajar teks.
+    const cont = /^\s/.test(raw);
+    const l = raw.trim();
+    const ind = cont ? Math.max(indent, w * 0.05) : indent;
+    const s = fit(l, lineSize, w - pad * 2 - ind);
     ctx.font = `${wt} ${s}px ${fam}`;
     ctx.fillStyle = ink;
+    if (cont) {
+      ctx.fillText(l, pad + ind, y);
+      y += lineGap;
+      continue;
+    }
     if (bullet === "dash") ctx.fillText("–", pad, y);
     if (bullet === "dot") {
       ctx.beginPath();

@@ -1,21 +1,27 @@
 "use client";
 
-// Scroll meja yang ringan (tidak "lengket"):
-// - Scroll bebas & halus (Lenis); kamera bergerak mengikuti scroll di sepanjang jalur perhentian.
-// - Tiap perhentian punya ZONA TAHAN kecil (HOLD) supaya kamera benar-benar berhenti tepat di objek.
-// - Tidak ada kunci baca dan tidak ada batas momentum: satu gestur boleh melewati beberapa section.
-// - Setelah scroll berhenti di tengah perjalanan, halaman melengkapi ke perhentian terdekat — condong
-//   searah gerakan terakhir (cukup 22% perjalanan untuk lanjut ke section berikutnya).
+// Scroll meja berbasis halaman (tidak lengket, tidak loncat-loncat):
+// - SATU GESTUR = SATU SECTION. Roda mouse, usapan trackpad, atau swipe di HP memicu perpindahan ke
+//   section berikutnya/sebelumnya dengan animasi berdurasi tetap (ease in-out) — jaraknya selalu tepat.
+// - Selama animasi & sisa inersia trackpad dari gestur yang sama, input diabaikan, jadi tidak pernah
+//   melompati dua section sekaligus. Gestur baru (jeda >220 ms atau dorongan baru yang lebih kuat)
+//   langsung jalan begitu animasi selesai — tidak ada kunci baca.
+// - Popup catatan terbuka → gestur scroll menutup popup dulu, lalu pindah section.
+// - Fallback: posisi di luar perhentian (mis. scrollbar ditarik) dirapikan ke perhentian terdekat.
 // Semua posisi dihitung dari tinggi layar saat ini, jadi tetap tepat di HP saat bilah alamat muncul/hilang.
 import { useEffect, useState, type RefObject } from "react";
 import type Lenis from "lenis";
+import { popup } from "./popup";
 
 /** Porsi jarak antarperhentian yang menjadi zona tahan (sisanya perjalanan kamera). */
-export const HOLD = 0.12;
+export const HOLD = 0.04;
 /** Tinggi tiap perhentian (svh) — menentukan berapa jauh scroll antarperhentian. */
 export const STOP_SVH = 70;
 /** Jeda setelah scroll terakhir sebelum snap (ms). */
-const IDLE = 150;
+const IDLE = 260;
+/** Durasi perpindahan satu section (detik). */
+const DUR = 1.15;
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 export type DeskDrive = {
   /** Perhentian 0 … n−1, tepat bilangan bulat di zona tahan. */
@@ -81,32 +87,92 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
   useEffect(() => {
     let lenis: Lenis | undefined;
     let timer = 0;
-    let lastDir = 1;
+    let animUntil = 0;
+    const gest = { last: 0, mag: 0, acc: 0, used: false };
 
-    const snap = () => {
-      const el = root.current;
-      if (!el || !lenis || lenis.isStopped || lenis.isTouching || lenis.isScrolling === "smooth") return;
+    /** Indeks perhentian tujuan saat ini (n = footer). Pakai targetScroll supaya tekan beruntun tetap tepat. */
+    const indexAt = (y: number) => {
+      const el = root.current!;
       const g = geom(el, n);
-      const y = window.scrollY;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      // Di antara meja & footer → lengkapi ke salah satunya.
-      if (y > g.end + 4 && y < max - 4) {
-        lenis.scrollTo(lastDir > 0 ? (y - g.end > (max - g.end) * 0.2 ? max : g.end) : y - g.end < (max - g.end) * 0.8 ? g.end : max, { duration: 0.8 });
-        return;
-      }
-      const d = driveOf(y, g);
-      if (d.hold >= 0) return;
-      const k = Math.floor(d.current);
-      const t = d.current - k;
-      const forward = lastDir > 0 ? t > 0.22 : t > 0.78;
-      const to = forward ? g.top + (k + 1) * g.S : g.top + k * g.S;
-      lenis.scrollTo(to, { duration: 0.75 });
+      if (y > g.end + 4) return n;
+      return Math.min(n - 1, Math.max(0, Math.round((y - g.top) / g.S)));
+    };
+    const go = (dir: number) => {
+      const el = root.current;
+      if (!el || !lenis) return;
+      const cur = indexAt(lenis.targetScroll);
+      const k = Math.min(n, Math.max(0, cur + dir));
+      if (k === cur) return;
+      const dur = k === n || cur === n ? 1.25 : DUR;
+      animUntil = performance.now() + dur * 1000 + 60;
+      lenis.scrollTo(stopY(el, k, n), { duration: dur, easing: easeInOut, lock: true, force: true });
     };
 
+    const virtualScroll = (data: { deltaX: number; deltaY: number; event: Event }) => {
+      const e = data.event;
+      const el = root.current;
+      if ((e as WheelEvent).ctrlKey || !lenis || !el) return true;
+      // Intro / layar lain yang menghentikan Lenis (bukan popup): biarkan Lenis menahan scroll.
+      if (lenis.isStopped && !popup.get()) return true;
+      const t = e.type;
+      const now = performance.now();
+      const block = () => {
+        if (e.cancelable && t !== "touchstart" && t !== "touchend") e.preventDefault();
+        return false;
+      };
+      if (t === "touchstart") {
+        gest.acc = 0;
+        gest.used = false;
+        return false; // tidak preventDefault: tap/klik tetap berfungsi
+      }
+      if (t === "touchend") return false; // abaikan inersia sentuh
+      if (t === "wheel") {
+        const mag = Math.abs(data.deltaY);
+        const gap = now - gest.last;
+        // Ekor inersia trackpad selalu MENGECIL. Gestur baru = jeda + tidak lebih lemah dari event terakhir,
+        // atau jeda panjang, atau dorongan baru yang jelas lebih kuat setelah animasi selesai. Dengan begitu
+        // inersia tidak terbaca sebagai gestur baru walau event-nya tersendat (main thread sibuk).
+        const fresh = (gap > 240 && mag >= gest.mag * 0.8) || gap > 650 || (now > animUntil && mag > gest.mag * 1.4 + 6);
+        gest.last = now;
+        gest.mag = mag;
+        if (fresh) {
+          gest.acc = 0;
+          gest.used = false;
+        }
+      }
+      if (now < animUntil || gest.used) return block();
+      gest.acc += data.deltaY;
+      const need = t === "wheel" ? 18 : 36;
+      if (Math.abs(gest.acc) >= need) {
+        gest.used = true;
+        const dir = Math.sign(gest.acc);
+        if (popup.get()) {
+          animUntil = now + 700; // popup sedang menutup; perpindahan menyusul setelahnya
+          popup.requestClose(() => go(dir));
+        } else go(dir);
+      }
+      return block();
+    };
+
+    // Posisi di luar perhentian (scrollbar ditarik, resize) → rapikan ke perhentian terdekat.
+    const snap = () => {
+      const el = root.current;
+      if (!el || !lenis || lenis.isStopped || lenis.isScrolling || performance.now() < animUntil) return;
+      const y = window.scrollY;
+      const k = indexAt(y);
+      const to = stopY(el, k, n);
+      if (Math.abs(to - y) > 2) lenis.scrollTo(to, { duration: 0.6, easing: easeInOut });
+    };
     const onScroll = () => {
-      if (lenis && lenis.direction) lastDir = lenis.direction;
       window.clearTimeout(timer);
       timer = window.setTimeout(snap, IDLE);
+    };
+    const onResize = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const el = root.current;
+        if (el && lenis && !lenis.isStopped) lenis.scrollTo(stopY(el, indexAt(window.scrollY), n), { immediate: true, force: true });
+      }, 150);
     };
 
     // Keyboard (panah, PageUp/Down, spasi): satu tekan = satu perhentian (n = footer).
@@ -114,33 +180,33 @@ export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
       const t = e.target as HTMLElement | null;
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       if (t && /^(BUTTON|A)$/.test(t.tagName) && e.key === " ") return; // spasi = aktifkan tombol/tautan
-      if (lenis?.isStopped) return;
       const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? (e.shiftKey && e.key === " " ? -1 : 1) : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
-      const el = root.current;
-      if (!dir || !el || !lenis) return;
+      if (!dir || !root.current || !lenis) return;
+      if (lenis.isStopped && !popup.get()) return;
       e.preventDefault();
-      const g = geom(el, n);
-      const cur = window.scrollY > g.end + 4 ? n : Math.round(f.current);
-      const k = Math.min(n, Math.max(0, cur + dir));
-      if (k === cur) return;
-      lenis.scrollTo(stopY(el, k, n), { duration: 0.9 });
+      if (performance.now() < animUntil) return;
+      if (popup.get()) {
+        animUntil = performance.now() + 700;
+        popup.requestClose(() => go(dir));
+      } else go(dir);
     };
 
     const attach = window.setInterval(() => {
       lenis = lenisOf();
       if (!lenis) return;
       window.clearInterval(attach);
+      lenis.options.virtualScroll = virtualScroll;
       lenis.on("scroll", onScroll);
       window.addEventListener("keydown", onKey);
-      // Sentuhan: snap setelah jari diangkat & inersia habis.
-      window.addEventListener("touchend", onScroll, { passive: true });
+      window.addEventListener("resize", onResize);
     }, 100);
     return () => {
       window.clearInterval(attach);
       window.clearTimeout(timer);
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("touchend", onScroll);
+      window.removeEventListener("resize", onResize);
       lenis?.off("scroll", onScroll);
+      if (lenis) lenis.options.virtualScroll = undefined;
     };
   }, [f, root, n]);
 
@@ -154,13 +220,3 @@ export function stopY(el: HTMLElement, k: number, n: number) {
   return g.top + k * g.S;
 }
 
-const sstep = (x: number, a: number, b: number) => {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-};
-/** Interpolasi antar perhentian dengan "diam" sejenak di sekitar tiap perhentian. */
-export function stopMix(f: number, count: number, hold = 0.22) {
-  const g = Math.min(count - 1, Math.max(0, Math.floor(f)));
-  const n = Math.min(count - 1, g + 1);
-  return { a: g, b: n, t: sstep(f - g, hold, 1 - hold) };
-}

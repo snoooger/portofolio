@@ -11,12 +11,12 @@ import { COPY, type Lang } from "./copy";
 import { DeskHeader } from "./Header";
 import { SeoContent } from "./SeoContent";
 import { DeskFooter } from "./Footer";
-import { Logo } from "./Logo";
 import { ScrollHint } from "./ScrollHint";
 import { StopDots } from "./StopDots";
 import { NotePopup } from "./NotePopup";
 import { MusicButton, useMusic } from "./Music";
 import { StaticDesk } from "./StaticDesk";
+import { unlockSfx } from "./sfx";
 import { STOP_SVH, useDeskScroll } from "./deskScroll";
 import { QUALITY, detectTier, lowerTier, softwareGL, type Tier } from "./quality";
 import { BEZEL, PH, PR, PW, type IntroState } from "./intro";
@@ -65,7 +65,13 @@ export function DeskProto() {
           <StaticDesk copy={copy} lang={lang} setLang={setLang} music={musicBtn} />
         </div>
       )}
-      {!base?.light && (
+      {base === null && (
+        // HTML server: hanya siluet pemuat (ringan untuk dihidrasi); kerangka 3D dipasang setelah mode diketahui.
+        <div className="desk-only">
+          <PhoneSilhouette label={copy.loading} shown={0} stage="load" />
+        </div>
+      )}
+      {base && !base.light && (
         <div className="desk-only">
           <Desk3D copy={copy} lang={lang} setLang={setLang} base={base?.tier ?? null} tier={tier} decline={decline} introDone={introDone} onIntroDone={() => setIntroDone(true)} music={musicBtn} />
         </div>
@@ -113,6 +119,17 @@ function Desk3D({
   const introRef = useRef<IntroState>({ phase: "hold", t0: 0 });
   const busy = useCallback((v: number) => farmBusy(v) || introRef.current.phase !== "done", []);
   const q = tier ? QUALITY[tier] : null;
+
+  // Audio efek kertas boleh berbunyi setelah interaksi pertama (aturan autoplay browser).
+  useEffect(() => {
+    const evs = ["pointerdown", "keydown", "touchend"] as const;
+    const on = () => {
+      unlockSfx();
+      evs.forEach((e) => window.removeEventListener(e, on, true));
+    };
+    evs.forEach((e) => window.addEventListener(e, on, { capture: true, passive: true }));
+    return () => evs.forEach((e) => window.removeEventListener(e, on, true));
+  }, []);
 
   // Intro selalu dimulai dari atas; scroll dikunci sampai kamera selesai keluar dari layar HP.
   useEffect(() => {
@@ -207,7 +224,7 @@ const SCR_W = PW - 2 * BEZEL, SCR_H = PH - 2 * BEZEL;
 
 /**
  * Layar pemuatan: siluet iPhone (ukuran & posisi = iPhone 3D di meja saat kamera intro, lihat intro.ts),
- * layarnya menampilkan logo + bar progres seperti layar boot. Selesai →
+ * layarnya menampilkan bar progres + persen seperti layar boot. Selesai →
  *  1. "wake"  : layar boot memudar, lock screen iPhone 3D terlihat tepat di baliknya;
  *  2. "reveal": krem di sekeliling & bingkai DOM memudar, meja muncul di sekitar HP, kamera mundur
  *               keluar dari layar HP menuju hero (DeskScene, INTRO_MS).
@@ -279,6 +296,11 @@ function PhoneLoader({
   }, [done, introRef]);
 
   if (stage === "gone") return null;
+  return <PhoneSilhouette label={label} shown={shown} stage={stage} />;
+}
+
+/** Tampilan siluet iPhone pemuat (tanpa logika) — dipakai juga sebagai kerangka di HTML server. */
+function PhoneSilhouette({ label, shown, stage }: { label: string; shown: number; stage: "load" | "wake" | "reveal" }) {
   const r = `${pct(PR, PW)} / ${pct(PR, PH)}`;
   const sr = `${pct(0.0098, SCR_W)} / ${pct(0.0098, SCR_H)}`;
   const inset = { top: pct(BEZEL, PH), bottom: pct(BEZEL, PH), left: pct(BEZEL, PW), right: pct(BEZEL, PW) };
@@ -306,14 +328,13 @@ function PhoneLoader({
         <div className="absolute" style={{ ...inset, borderRadius: sr, boxShadow: "0 0 0 80px #050505" }} />
         {/* Tepi titanium */}
         <div className="absolute inset-0" style={{ borderRadius: r, boxShadow: "inset 0 0 0 1.5px #5b5955, inset 0 0 0 3px #2a2927" }} />
-        {/* Layar boot: logo + progres. Memudar saat "wake" → lock screen 3D di baliknya. */}
+        {/* Layar boot: bar progres + persen. Memudar saat "wake" → lock screen 3D di baliknya. */}
         <div
           className="absolute flex flex-col items-center justify-center bg-black transition-opacity duration-500 ease-out"
           style={{ ...inset, borderRadius: sr, opacity: stage === "load" ? 1 : 0 }}
         >
           <span className="absolute left-1/2 top-[2%] h-[4.1%] w-[31%] -translate-x-1/2 rounded-full bg-[#050505] ring-1 ring-white/5" />
-          <Logo size={64} fill={shown / 100} className="h-auto w-[30%] drop-shadow-[0_10px_24px_rgba(194,85,47,0.35)]" />
-          <span className="mt-[12%] block h-[5px] w-[42%] overflow-hidden rounded-full bg-white/20">
+          <span className="block h-[5px] w-[46%] overflow-hidden rounded-full bg-white/20">
             <span className="block h-full origin-left rounded-full bg-[#fbf3e3]" style={{ transform: `scaleX(${shown / 100})` }} />
           </span>
           <span className="mt-[6%] font-mono text-[clamp(11px,1.6dvh,15px)] tabular-nums text-white/70">{Math.round(shown)}%</span>

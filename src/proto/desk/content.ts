@@ -34,8 +34,13 @@ export function detailsFor(id: string, copy: Copy): Card | null {
     return { kicker: n.about, title: intro.title, lines: intro.lines, facts: stats.map((s) => ({ v: s.title, k: s.lines.join(" ") })) };
   }
   if (WORK.includes(id)) {
-    const p = copy.projects[id];
-    return { kicker: `${n.work} · ${String(WORK.indexOf(id) + 1).padStart(2, "0")} / 05`, title: p.title, lines: p.lines, facts: p.facts };
+    const pages = copy.notes[id];
+    return {
+      kicker: `${n.work} · ${String(WORK.indexOf(id) + 1).padStart(2, "0")} / 05`,
+      title: pages[0].title,
+      lines: pages.flatMap((p, i) => (i ? [p.title, ...p.lines] : p.lines)).map((l) => l.trim()),
+      facts: pages.flatMap((p) => p.facts ?? []),
+    };
   }
   if (id === "skills")
     return { kicker: n.skills, title: n.skills, lines: [], list: copy.skills.map((s) => ({ a: s.title, b: s.lines.join(" · ") })) };

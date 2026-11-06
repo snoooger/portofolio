@@ -352,12 +352,12 @@ export function IPhone({
       <group rotation-x={-Math.PI / 2} position={[0, PD + 0.0006, 0]}>
         <Poppable
           id="iphone"
-          stop={() => (Math.abs(f.current - CONTACT) < 0.5 ? "contact" : "about")}
+          stop={() => (Math.abs(f.current - CONTACT) < 0.5 ? "contact-phone" : "about")}
           w={SWm}
           h={SHm}
           kind="screen"
           lift={0}
-          primaryFor="about"
+          order={0}
           image={() => ((Math.abs(f.current - CONTACT) < 0.5 || !ig ? screen : ig).image as HTMLCanvasElement)}
           alt={() => `${copy.ig.name} — ${copy.ig.category}. ${copy.ig.bio.join(" ")}`}
           onPick={() => {

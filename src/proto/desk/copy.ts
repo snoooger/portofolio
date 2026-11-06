@@ -36,7 +36,7 @@ const en = {
   role: "Fullstack Developer & AI Automation Engineer",
   loading: "Setting up the desk",
   scroll: { hint: "Scroll to explore", touch: "Swipe up to explore" },
-  popup: { close: "Close", read: "Open note", screen: "Open screen" },
+  popup: { close: "Close", read: "Open note", screen: "Open screen", prev: "Previous note", next: "Next note", visit: "Visit" },
   music: { on: "Mute music", off: "Play music" },
   fallback: {
     note: "This browser has no hardware graphics acceleration, so you're seeing the light version of the 3D desk.",
@@ -94,6 +94,31 @@ const en = {
       color: ORANGE,
     },
   } as Record<string, Note>,
+  /** Catatan tiap proyek (berhalaman). Lembar pertama = yang terlihat di benda 3D; popup membuka semuanya. */
+  notes: {
+    farmagent: [
+      { title: "FarmAgent", lines: ["A phone farm that runs", "social accounts on its own:", "real Android phones post,", "scroll & warm up accounts."], facts: [{ v: "12+", k: "phones" }, { v: "6", k: "platforms" }], color: YELLOW },
+      { title: "How it runs", lines: ["Auto-post: publishes content", "Auto-scroll: browses like a user", "Warm-up: grows new accounts", "On IG · Facebook · YouTube", "TikTok · RedNote · Douyin"], color: YELLOW },
+    ],
+    sonar: [
+      { title: "Sonar", lines: ["An office of AI agents that", "gets a business found on Google", "and in AI answers.", "Live: usesonarnow.com"], facts: [{ v: "5", k: "agent teams" }, { v: "SEO·AEO·GEO", k: "on autopilot" }], color: BLUE },
+      { title: "How it works", lines: ["1. Scan: read-only site audit", "2. Fix: titles, answers, schema,", "   each checked vs your rules", "3. Prove: A/B vs untouched pages,", "   every change reversible"], color: BLUE },
+      { title: "Measured on", lines: ["Google · AI Overviews", "ChatGPT · Perplexity · Gemini", "Claude · Copilot", "Data: Search Console, GA4,", "   Bing Webmaster Tools"], color: BLUE },
+    ],
+    promptedsite: [
+      { title: "PromptedSite", lines: ["A marketplace of motion", "prompts that turn into", "premium websites.", "Live: promptedsite.com"], facts: [{ v: "500+", k: "prompts" }, { v: "~100", k: "buyers" }], color: PINK },
+      { title: "How it works", lines: ["1. Choose a plan:", "   monthly, yearly or lifetime", "2. Pick a template, copy its prompt", "3. Paste it into an AI coding tool:", "   the website builds itself"], color: PINK },
+      { title: "What I built", lines: ["Scroll-driven 3D landing page", "Gallery of live previews", "Plans, checkout & sign-in", "Prompt library + source files", "Built & shipped end to end"], color: PINK },
+    ],
+    viralengine: [
+      { title: "ViralEngine", lines: ["Spots what goes viral, and", "what is about to, on TikTok,", "Instagram, YouTube, Facebook,", "Douyin and RedNote."], facts: [{ v: "6", k: "platforms" }, { v: "2", k: "layers" }], color: GREEN },
+      { title: "Two layers", lines: ["1: already viral, scraped", "2: about to go viral, from", "   creators' engagement velocity", "Internal tool: the screen", "shows demo data."], color: GREEN },
+    ],
+    security: [
+      { title: "Security", lines: ["Found & responsibly reported", "a data exposure (±200 ASN)", "at Pemprov DKI Jakarta.", "Pentesting: OWASP Top 10, AD"], facts: [{ v: "±200", k: "ASN records" }, { v: "OWASP", k: "Top 10" }], color: ORANGE },
+      { title: "My thesis", lines: ["Real-time blocker for", "malicious websites, powered", "by BiLSTM + attention", "(machine learning)."], facts: [{ v: "97.62%", k: "accuracy" }, { v: "BiLSTM", k: "+ attention" }], color: ORANGE },
+    ],
+  } as Record<string, Note[]>,
   stack: "internal tool — described only",
   skills: [
     { title: "Build", lines: ["Next.js · React · Electron", "TypeScript · Python", "FastAPI · Supabase", "Cloudflare · Polar · Alchemy"], color: YELLOW },
@@ -153,7 +178,7 @@ const id: typeof en = {
   role: "Fullstack Developer & AI Automation Engineer",
   loading: "Menyiapkan meja",
   scroll: { hint: "Scroll untuk menjelajah", touch: "Geser ke atas" },
-  popup: { close: "Tutup", read: "Buka catatan", screen: "Buka layar" },
+  popup: { close: "Tutup", read: "Buka catatan", screen: "Buka layar", prev: "Catatan sebelumnya", next: "Catatan berikutnya", visit: "Kunjungi" },
   music: { on: "Matikan musik", off: "Putar musik" },
   fallback: {
     note: "Browser ini tidak memakai akselerasi grafis hardware, jadi yang tampil versi ringan dari meja 3D.",
@@ -209,6 +234,30 @@ const id: typeof en = {
       facts: [{ v: "±200", k: "ASN" }, { v: "97.62%", k: "akurasi" }],
       color: ORANGE,
     },
+  },
+  notes: {
+    farmagent: [
+      { title: "FarmAgent", lines: ["Phone farm yang menjalankan", "akun sosial media sendiri:", "HP Android sungguhan posting,", "scroll & warm-up akun."], facts: [{ v: "12+", k: "HP" }, { v: "6", k: "platform" }], color: YELLOW },
+      { title: "Cara kerjanya", lines: ["Auto-post: menerbitkan konten", "Auto-scroll: menjelajah seperti user", "Warm-up: menumbuhkan akun baru", "Di IG · Facebook · YouTube", "TikTok · RedNote · Douyin"], color: YELLOW },
+    ],
+    sonar: [
+      { title: "Sonar", lines: ["Kantor berisi agen AI yang", "membuat bisnis ditemukan di", "Google dan jawaban AI.", "Live: usesonarnow.com"], facts: [{ v: "5", k: "tim agen" }, { v: "SEO·AEO·GEO", k: "autopilot" }], color: BLUE },
+      { title: "Cara kerjanya", lines: ["1. Scan: audit situs read-only", "2. Fix: judul, jawaban, schema,", "   dicek sesuai aturanmu", "3. Prove: A/B vs halaman kontrol,", "   semua perubahan bisa dibatalkan"], color: BLUE },
+      { title: "Diukur di", lines: ["Google · AI Overviews", "ChatGPT · Perplexity · Gemini", "Claude · Copilot", "Data: Search Console, GA4,", "   Bing Webmaster Tools"], color: BLUE },
+    ],
+    promptedsite: [
+      { title: "PromptedSite", lines: ["Marketplace motion prompt", "yang menjadi website", "premium.", "Live: promptedsite.com"], facts: [{ v: "500+", k: "prompt" }, { v: "~100", k: "pembeli" }], color: PINK },
+      { title: "Cara kerjanya", lines: ["1. Pilih paket:", "   bulanan, tahunan, lifetime", "2. Pilih template, salin prompt", "3. Tempel ke AI coding tool:", "   website-nya jadi sendiri"], color: PINK },
+      { title: "Yang saya bangun", lines: ["Landing 3D berbasis scroll", "Galeri pratinjau live", "Paket, checkout & login", "Galeri prompt + source file", "Dibangun & dirilis end to end"], color: PINK },
+    ],
+    viralengine: [
+      { title: "ViralEngine", lines: ["Menangkap konten yang viral", "dan yang akan viral di TikTok,", "Instagram, YouTube, Facebook,", "Douyin dan RedNote."], facts: [{ v: "6", k: "platform" }, { v: "2", k: "lapisan" }], color: GREEN },
+      { title: "Dua lapisan", lines: ["1: sudah viral, hasil scraping", "2: akan viral, dari velocity", "   engagement kreator", "Tool internal: layar memakai", "data demo."], color: GREEN },
+    ],
+    security: [
+      { title: "Security", lines: ["Menemukan & melaporkan", "kebocoran data ±200 ASN", "Pemprov DKI Jakarta.", "Pentesting: OWASP Top 10, AD"], facts: [{ v: "±200", k: "data ASN" }, { v: "OWASP", k: "Top 10" }], color: ORANGE },
+      { title: "Skripsi", lines: ["Pemblokir situs berbahaya", "secara real time, memakai", "BiLSTM + attention", "(machine learning)."], facts: [{ v: "97.62%", k: "akurasi" }, { v: "BiLSTM", k: "+ attention" }], color: ORANGE },
+    ],
   },
   stack: "tool internal — hanya dijelaskan",
   skills: [

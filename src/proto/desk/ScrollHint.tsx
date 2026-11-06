@@ -1,15 +1,18 @@
 "use client";
 
 // Pil di tengah bawah layar, muncul saat kamera diam di sebuah perhentian (bukan di footer):
-// - tombol "Buka catatan" (bila section punya catatan/layar) → membuka popup benda utama section itu;
+// - tombol "Buka catatan" (bila section punya catatan) → membuka lagi popup catatan section itu;
 // - ajakan scroll: ikon mouse dengan roda bergerak (desktop) atau panah naik (layar sentuh).
+// Sekaligus membuka popup catatan OTOMATIS saat kamera tiba & berhenti di section baru (sekali per kunjungan).
 import { useEffect, useRef, useState } from "react";
 import type { DeskDrive } from "./deskScroll";
 import { DESK_STOPS } from "./stops";
+import type Lenis from "lenis";
 import { popup } from "./popup";
 
-const MONITOR = new Set(["sonar", "promptedsite", "viralengine", "security"]);
-const primaryKey = (id: string) => (MONITOR.has(id) ? "monitor" : id);
+const lenisOf = () => (window as unknown as { __lenis?: Lenis }).__lenis;
+/** Jeda setelah kamera berhenti sebelum catatan terbuka otomatis (ms). */
+const AUTO_DELAY = 420;
 
 export function ScrollHint({
   f,
@@ -41,20 +44,35 @@ export function ScrollHint({
   useEffect(() => {
     let raf = 0;
     let last: string | null = "";
+    let cand: string | null = null, since = 0, opened: string | null = null;
     const tick = () => {
       const d = el.current;
       if (d) {
-        const main = document.querySelector("main");
-        const end = main ? main.offsetTop + main.offsetHeight - window.innerHeight : Infinity;
-        const show = enabled && f.hold >= 0 && window.scrollY < end + 4 && count > 0 && !popup.get().open;
+        const now = performance.now();
+        const main = document.querySelector(".desk-only main");
+        const end = main ? (main as HTMLElement).offsetTop + (main as HTMLElement).offsetHeight - window.innerHeight : Infinity;
+        const inDesk = window.scrollY < end + 4;
+        const atStop = enabled && f.hold >= 0 && inDesk && count > 0;
+        const id = atStop ? (DESK_STOPS[Math.round(f.current)]?.id ?? null) : null;
+        const isOpen = !!popup.get();
+        const show = atStop && !isOpen;
         d.style.opacity = show ? "1" : "0";
         d.style.transform = `translate(-50%, ${show ? 0 : 10}px)`;
         d.style.visibility = show ? "visible" : "hidden";
-        const id = show ? DESK_STOPS[Math.round(f.current)]?.id ?? null : null;
-        const key = id && popup.hasPrimary(primaryKey(id)) ? id : null;
+        const key = id && id !== "hero" && popup.hasSection(id) ? id : null;
         if (key !== last) {
           last = key;
           setStop(key);
+        }
+        // Buka otomatis: kamera berhenti di section baru (scroll selesai) selama AUTO_DELAY.
+        const settled = atStop && !lenisOf()?.isScrolling && !isOpen;
+        if (opened && id !== opened && !isOpen) opened = null; // pindah section → boleh buka lagi saat kembali
+        if (!settled || id !== cand) {
+          cand = settled ? id : null;
+          since = now;
+        } else if (key && key === cand && opened !== key && now - since > AUTO_DELAY) {
+          opened = key;
+          popup.openSection(key);
         }
       }
       raf = requestAnimationFrame(tick);
@@ -71,7 +89,7 @@ export function ScrollHint({
     >
       {stop && (
         <button
-          onClick={() => popup.openPrimary(primaryKey(stop))}
+          onClick={() => popup.openSection(stop)}
           className="pointer-events-auto flex items-center gap-2 whitespace-nowrap rounded-full border-2 border-[#1d3a2b] bg-[#f5c84c] py-2 pl-3 pr-4 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-[#1d3a2b] shadow-[0_10px_30px_-12px_rgba(16,36,26,0.6)] transition hover:bg-[#1d3a2b] hover:text-[#f5c84c]"
         >
           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

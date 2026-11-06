@@ -57,6 +57,7 @@ const nextConfig: NextConfig = {
       { source: "/:path*", headers: securityHeaders },
       { source: "/assets-3d/:path*", headers: assetCache },
       { source: "/fonts-proto/:path*", headers: assetCache },
+      { source: "/audio/:path*", headers: assetCache },
     ];
   },
 };

@@ -6,9 +6,10 @@ import { Suspense, lazy, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RoundedBox, SoftShadows, useGLTF, useTexture } from "@react-three/drei";
 import * as THREE from "three";
+import type { PerspectiveCamera } from "three";
 import { P } from "../palette";
 import { matTexture, plainPaperTexture } from "../textures";
-import { stopMix } from "../useScrollProgress";
+import { stopMix } from "./deskScroll";
 import { Pencil, Sheet } from "../objects/DeskProps";
 import { Asset, MODELS } from "../hd/Asset";
 import { useFonts, type Fonts } from "../final/useFonts";
@@ -23,7 +24,9 @@ import { IPhone } from "./IPhone";
 import type { Copy, Note } from "./copy";
 import type { Quality } from "./quality";
 import { applyFraming, makeAxes } from "./frame";
-import { DeskText } from "./DeskText";
+import type { NoteMeta } from "./Workstation";
+import { Poppable } from "./Poppable";
+import { INTRO_MS, easeInOut, introPose, silhouette, type IntroState } from "./intro";
 import { GradCorner } from "./GradCorner";
 import { ContactShadow } from "./ContactShadow";
 
@@ -59,6 +62,12 @@ const STYLE: Record<string, NoteStyle> = {
   certificates: { hand: "caveat", paper: "dots", deco: "circle", doodle: "star" },
 };
 
+/** Teks alternatif post-it (pembaca layar di popup). */
+const noteAlt = (n: Note) => [n.title, ...n.lines, ...(n.facts ?? []).map((x) => `${x.v} ${x.k}`)].join(". ");
+/** Data popup sebuah benda: id unik, section pemilik, teks alternatif, item utama section. */
+type Pop = { id: string; stop: string; alt: string; primaryFor?: string };
+const CERT_NAMES = ["Bootcamp", "Google", "Microsoft Azure", "Coding Studio — Cyber Security", "Huawei HCIA", "Coding Studio — Network", "Coding Studio — Pentest", "Coding Studio — Linux", "Microsoft Office Specialist"];
+
 const PEG_FIT: Fit = { axis: "z", size: 2.2 };
 const BINDER_HIDE = ["binder_notebook_closed"];
 /** Pegboard SKÅDIS berwarna putih seperti aslinya. */
@@ -84,6 +93,7 @@ function PostIt({
   style,
   size = 0.1,
   tape = false,
+  pop,
   ...props
 }: {
   note: Note;
@@ -91,6 +101,7 @@ function PostIt({
   style: NoteStyle;
   size?: number;
   tape?: boolean;
+  pop: Pop;
   position: [number, number, number];
   rotation?: [number, number, number];
 }) {
@@ -98,14 +109,16 @@ function PostIt({
   useEffect(() => () => t.dispose(), [t]);
   return (
     <group {...props}>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[size, size, 0.0008]} />
-        {[0, 1, 2, 3, 5].map((i) => (
-          <meshStandardMaterial key={i} attach={`material-${i}`} color={note.color ?? "#F6DD7A"} />
-        ))}
-        <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
-      </mesh>
-      {tape && <Tape w={size * 0.42} rot={-0.06} position={[0, size / 2 - size * 0.02, 0.0012]} />}
+      <Poppable {...pop} w={size} h={size} image={() => t.image as HTMLCanvasElement} color={note.color ?? "#F6DD7A"}>
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[size, size, 0.0008]} />
+          {[0, 1, 2, 3, 5].map((i) => (
+            <meshStandardMaterial key={i} attach={`material-${i}`} color={note.color ?? "#F6DD7A"} />
+          ))}
+          <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
+        </mesh>
+        {tape && <Tape w={size * 0.42} rot={-0.06} position={[0, size / 2 - size * 0.02, 0.0012]} />}
+      </Poppable>
     </group>
   );
 }
@@ -114,8 +127,11 @@ function PostIt({
 function StatsPostIt({ copy, hands, size = 0.19, ...props }: { copy: Copy; hands: HandFamilies; size?: number; position: [number, number, number]; rotation?: [number, number, number] }) {
   const t = useMemo(() => statsNote(copy.farmStats, hands), [copy, hands]);
   useEffect(() => () => t.dispose(), [t]);
+  const fs = copy.farmStats;
   return (
     <group {...props}>
+      <Poppable id="farm-stats" stop="farmagent" w={size} h={size} color="#C9DDB0" image={() => t.image as HTMLCanvasElement}
+        alt={`${fs.title}. ${fs.views} ${fs.viewsLabel}. ${fs.followers} ${fs.followersLabel}. ${fs.scope}`}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[size, size, 0.0008]} />
         {[0, 1, 2, 3, 5].map((i) => (
@@ -124,6 +140,7 @@ function StatsPostIt({ copy, hands, size = 0.19, ...props }: { copy: Copy; hands
         <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
       </mesh>
       <Tape w={size * 0.42} rot={0.05} position={[0, size / 2 - size * 0.02, 0.0012]} />
+      </Poppable>
     </group>
   );
 }
@@ -134,6 +151,7 @@ function ToolPostIt({ tool, hands, size = 0.12, ...props }: { tool: (typeof TOOL
   useEffect(() => () => t.dispose(), [t]);
   return (
     <group {...props}>
+      <Poppable id={`tool-${tool.id}`} stop="experience" w={size} h={size} color={tool.paper} image={() => t.image as HTMLCanvasElement} alt={tool.label}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[size, size, 0.0008]} />
         {[0, 1, 2, 3, 5].map((i) => (
@@ -142,6 +160,7 @@ function ToolPostIt({ tool, hands, size = 0.12, ...props }: { tool: (typeof TOOL
         <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
       </mesh>
       <Tape w={size * 0.45} rot={[-0.08, 0.06, -0.03, 0.07, -0.05, 0.04][TOOLS.indexOf(tool)]} position={[0, size / 2 - size * 0.02, 0.0012]} />
+      </Poppable>
     </group>
   );
 }
@@ -153,6 +172,7 @@ function EduPostIt({ copy, hands, size = 0.18, ...props }: { copy: Copy; hands: 
   const color = copy.education.color ?? "#BFD7E6";
   return (
     <group {...props}>
+      <Poppable id="edu" stop="education" primaryFor="education" w={size} h={size} color={color} image={() => t.image as HTMLCanvasElement} alt={noteAlt(copy.education)}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[size, size, 0.0008]} />
         {[0, 1, 2, 3, 5].map((i) => (
@@ -161,6 +181,7 @@ function EduPostIt({ copy, hands, size = 0.18, ...props }: { copy: Copy; hands: 
         <meshStandardMaterial attach="material-4" map={t} roughness={0.85} />
       </mesh>
       <Tape w={size * 0.42} rot={-0.06} position={[0, size / 2 - size * 0.02, 0.0012]} />
+      </Poppable>
     </group>
   );
 }
@@ -174,6 +195,7 @@ function CalendarPage({ copy, hands, fonts, w = 0.17, ...props }: { copy: Copy; 
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group {...props}>
+      <Poppable id="calendar" stop="education" w={w} h={h} color="#fbf7f1" image={() => t.image as HTMLCanvasElement} alt={`${copy.calendar.note} — September 2026`}>
       <mesh geometry={geo} castShadow receiveShadow>
         <meshStandardMaterial
           map={t}
@@ -197,14 +219,16 @@ function CalendarPage({ copy, hands, fonts, w = 0.17, ...props }: { copy: Copy; 
           <meshPhysicalMaterial color="#c4302b" roughness={0.3} clearcoat={0.6} />
         </mesh>
       </group>
+      </Poppable>
     </group>
   );
 }
 
 /** Post-it yang berbaring di permukaan meja (dibaca dari atas). */
-function DeskNote(props: { note: Note; hands: HandFamilies; style: NoteStyle; size?: number; x: number; z: number; rot?: number; lift?: number }) {
+function DeskNote(props: { note: Note; hands: HandFamilies; style: NoteStyle; size?: number; x: number; z: number; rot?: number; lift?: number; pop: Pop }) {
   return (
     <PostIt
+      pop={props.pop}
       note={props.note}
       hands={props.hands}
       style={props.style}
@@ -282,11 +306,12 @@ function curledSheet(w: number, h: number, seed: number) {
 }
 
 /** Kertas yang dijepit di pegboard. */
-function Pinned({ map, w, h, x, y, rot = 0, pin = true }: { map: THREE.Texture; w: number; h: number; x: number; y: number; rot?: number; pin?: boolean }) {
+function Pinned({ map, w, h, x, y, rot = 0, pin = true, pop }: { map: THREE.Texture; w: number; h: number; x: number; y: number; rot?: number; pin?: boolean; pop: Pop }) {
   const geo = useMemo(() => curledSheet(w, h, x * 7 + y * 3), [w, h, x, y]);
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group position={[x, y, WALL_Z + 0.05]} rotation-z={rot}>
+      <Poppable {...pop} w={w} h={h} image={() => map.image as CanvasImageSource} color="#fbf7f1">
       <mesh geometry={geo} castShadow receiveShadow>
         <meshStandardMaterial
           map={map}
@@ -311,6 +336,7 @@ function Pinned({ map, w, h, x, y, rot = 0, pin = true }: { map: THREE.Texture; 
           </mesh>
         </group>
       )}
+      </Poppable>
     </group>
   );
 }
@@ -405,7 +431,21 @@ function ShadowBake({ deps }: { deps: unknown[] }) {
 // Post-processing dimuat terpisah hanya bila tier memakainya (HP & laptop biasa tidak mengunduhnya).
 const Post = lazy(() => import("./Post").then((m) => ({ default: m.Post })));
 
-export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDrive; copy: Copy; quality: Quality; onReady?: () => void; onPhone?: () => void }) {
+export function DeskScene({
+  f,
+  copy,
+  quality: q,
+  introRef,
+  onReady,
+  onPhone,
+}: {
+  f: DeskDrive;
+  copy: Copy;
+  quality: Quality;
+  introRef: { current: IntroState };
+  onReady?: () => void;
+  onPhone?: () => void;
+}) {
   const fonts = useFonts();
   const pbr = useRoomPBR();
   const mat = useMemo(() => matTexture("#2f6f55"), []); // hijau cutting mat klasik
@@ -417,6 +457,10 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
     if (!hands) return null;
     return (["sonar", "promptedsite", "viralengine", "security"] as const).map((k) => postIt(copy.projects[k], hands, STYLE[k]));
   }, [hands, copy]);
+  const noteMeta = useMemo<NoteMeta[]>(
+    () => (["sonar", "promptedsite", "viralengine", "security"] as const).map((k) => ({ stop: k, alt: noteAlt(copy.projects[k]), color: copy.projects[k].color })),
+    [copy],
+  );
   const certImages = useTexture(CERT_IMAGES.map((c) => c.src));
   useEffect(() => {
     certImages.forEach((t) => {
@@ -458,7 +502,8 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
   );
   const tmp = useRef({ p: new THREE.Vector3(), l: new THREE.Vector3() });
   const tmpAxes = useRef(makeAxes());
-  const I = { farm: deskIndex("farmagent"), sonar: deskIndex("sonar"), ps: deskIndex("promptedsite"), sec: deskIndex("security") };
+  const iv = useRef({ a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3(), d0: new THREE.Vector3(), d1: new THREE.Vector3() });
+  const I = { farm: deskIndex("farmagent"), sonar: deskIndex("sonar"), sec: deskIndex("security") };
 
   useFrame((state, dt) => {
     const v = f.current;
@@ -470,32 +515,57 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
     p.lerpVectors(V[a].p, V[b].p, t);
     l.lerpVectors(V[a].l, V[b].l, t);
     const A = DESK_STOPS[a], B = DESK_STOPS[b];
-    const asp = (camera as THREE.PerspectiveCamera).aspect;
+    const cam = camera as PerspectiveCamera;
+    const asp = cam.aspect;
     const span = THREE.MathUtils.lerp(spanOf(A, asp), spanOf(B, asp), t);
-    const side = THREE.MathUtils.lerp(A.text?.side ?? 0, B.text?.side ?? 0, t);
-    const text = THREE.MathUtils.lerp(A.text ? 1 : 0, B.text ? 1 : 0, t);
-    const cam = camera as THREE.PerspectiveCamera;
-    const fov = applyFraming(p, l, span, side, text, cam.aspect, tmpAxes.current);
+    // Objek di tengah bingkai (penjelasan ada di benda itu sendiri, tidak ada ruang teks).
+    const fov = applyFraming(p, l, span, 0, 0, asp, tmpAxes.current);
     if (cam.fov !== fov) {
       cam.fov = fov;
       cam.updateProjectionMatrix();
     }
-    const reach = Math.min(1, p.distanceTo(l) / 4);
-    l.x += pointer.x * 0.08 * reach;
-    l.y += pointer.y * 0.05 * reach;
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, p.x, 7, dt);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, p.y, 7, dt);
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, p.z, 7, dt);
-    look.current.x = THREE.MathUtils.damp(look.current.x, l.x, 7, dt);
-    look.current.y = THREE.MathUtils.damp(look.current.y, l.y, 7, dt);
-    look.current.z = THREE.MathUtils.damp(look.current.z, l.z, 7, dt);
-    camera.lookAt(look.current);
+    const intro = introRef.current;
+    if (intro.phase !== "done") {
+      // Intro: kamera mulai tepat di atas iPhone (sejajar siluet pemuat), lalu mundur keluar dari layar HP.
+      // Jarak diinterpolasi geometris supaya laju zoom terasa rata; arah pandang berputar halus ke pose hero.
+      const ip = introPose(asp, silhouette(state.size.width, state.size.height).frac);
+      let e = 0;
+      if (intro.phase === "zoom") {
+        e = easeInOut(Math.min(1, Math.max(0, (performance.now() - intro.t0) / INTRO_MS)));
+        if (e >= 1) intro.phase = "done";
+      }
+      const { a: L, b: P0, c: C0, d0, d1 } = iv.current;
+      L.set(...ip.look).lerp(l, e);
+      P0.set(...ip.pos);
+      d0.subVectors(P0, C0.set(...ip.look));
+      const r0 = d0.length();
+      d1.subVectors(p, l);
+      const r1 = d1.length();
+      d0.normalize().lerp(d1.normalize(), e).normalize();
+      camera.position.copy(L).addScaledVector(d0, r0 * Math.pow(r1 / r0, e));
+      look.current.copy(L);
+      camera.lookAt(look.current);
+    } else {
+      const reach = Math.min(1, p.distanceTo(l) / 4);
+      l.x += pointer.x * 0.08 * reach;
+      l.y += pointer.y * 0.05 * reach;
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, p.x, 7, dt);
+      camera.position.y = THREE.MathUtils.damp(camera.position.y, p.y, 7, dt);
+      camera.position.z = THREE.MathUtils.damp(camera.position.z, p.z, 7, dt);
+      look.current.x = THREE.MathUtils.damp(look.current.x, l.x, 7, dt);
+      look.current.y = THREE.MathUtils.damp(look.current.y, l.y, 7, dt);
+      look.current.z = THREE.MathUtils.damp(look.current.z, l.z, 7, dt);
+      camera.lookAt(look.current);
+    }
 
     farmRun.current = THREE.MathUtils.clamp((v - (I.farm - 0.5)) / 0.8, 0, 1) * (v > I.farm + 0.8 ? 0 : 1);
     screen.current = v > I.sonar - 0.5 && v < I.sec + 0.6 ? v - I.sonar : -1;
     noteIdx.current = THREE.MathUtils.clamp(v - I.sonar, 0, 3);
-    // Halaman PromptedSite di monitor ikut bergulir mengikuti scroll, termasuk selama zona tahan.
-    galleryScroll.current = THREE.MathUtils.clamp(f.raw - (I.ps - 0.5), 0, 1);
+    // Halaman situs di monitor (Sonar, PromptedSite) ikut bergulir mengikuti scroll di section-nya.
+    const si = Math.round(screen.current);
+    // Tiba di section → halaman di posisi teratas (hero situs); scroll lanjut → halaman ikut digulir
+    // sampai bawah tepat sebelum layar berganti ke proyek berikutnya.
+    galleryScroll.current = THREE.MathUtils.clamp((f.raw - (I.sonar + si)) * 2.1, 0, 1);
   });
 
   const [rx, rz] = SPOT.rack;
@@ -575,6 +645,7 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
             style={STYLE.farmagent}
             size={0.19}
             tape
+            pop={{ id: "farmagent", stop: "farmagent", primaryFor: "farmagent", alt: noteAlt(copy.projects.farmagent) }}
             position={[-0.12, PLATE.y + 0.004, RACK.D / 2 + 0.0045]}
             rotation={[0, 0, 0.03]}
           />
@@ -589,7 +660,7 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
 
       {/* Monitor + Mac mini (Sonar, PromptedSite, ViralEngine, Security) */}
       {fonts && monitorNotes && (
-        <Workstation fonts={fonts} glow={q.practicals} screen={screen} scroll={galleryScroll} notes={monitorNotes} noteIndex={noteIdx} position={[mx, TOP, mz]} />
+        <Workstation fonts={fonts} glow={q.practicals} screen={screen} scroll={galleryScroll} notes={monitorNotes} noteMeta={noteMeta} noteIndex={noteIdx} position={[mx, TOP, mz]} />
       )}
 
       {/* Hero: cutting mat + tumpukan kertas (sedikit berantakan, tetap rapi dipandang) */}
@@ -602,15 +673,16 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
       <Pencil color="#f2c12e" eraser position={[px - 0.03, TOP + 0.006, pz + 0.215]} rotation-y={0.1} scale={0.13} />
       {hands && (
         <>
-          <DeskNote note={copy.about[0]} hands={hands} style={STYLE.about0} size={0.15} x={ax + 0.01} z={az - 0.075} rot={0.07} lift={0.002} />
-          <DeskNote note={copy.about[1]} hands={hands} style={STYLE.about1} size={0.075} x={ax - 0.075} z={az + 0.105} rot={-0.12} lift={0.0025} />
-          <DeskNote note={copy.about[2]} hands={hands} style={STYLE.about2} size={0.075} x={ax + 0.012} z={az + 0.125} rot={0.06} lift={0.003} />
-          <DeskNote note={copy.about[3]} hands={hands} style={STYLE.about3} size={0.075} x={ax + 0.098} z={az + 0.098} rot={0.16} lift={0.0035} />
+          <DeskNote pop={{ id: "about0", stop: "about", alt: noteAlt(copy.about[0]) }} note={copy.about[0]} hands={hands} style={STYLE.about0} size={0.15} x={ax + 0.01} z={az - 0.075} rot={0.07} lift={0.002} />
+          <DeskNote pop={{ id: "about1", stop: "about", alt: noteAlt(copy.about[1]) }} note={copy.about[1]} hands={hands} style={STYLE.about1} size={0.075} x={ax - 0.075} z={az + 0.105} rot={-0.12} lift={0.0025} />
+          <DeskNote pop={{ id: "about2", stop: "about", alt: noteAlt(copy.about[2]) }} note={copy.about[2]} hands={hands} style={STYLE.about2} size={0.075} x={ax + 0.012} z={az + 0.125} rot={0.06} lift={0.003} />
+          <DeskNote pop={{ id: "about3", stop: "about", alt: noteAlt(copy.about[3]) }} note={copy.about[3]} hands={hands} style={STYLE.about3} size={0.075} x={ax + 0.098} z={az + 0.098} rot={0.16} lift={0.0035} />
 
           {/* Skills: tiga post-it saling tumpang tindih sedikit */}
           {copy.skills.map((n, i) => (
             <DeskNote
               key={n.title}
+              pop={{ id: `skill${i}`, stop: "skills", primaryFor: i === 0 ? "skills" : undefined, alt: noteAlt(n) }}
               note={n}
               hands={hands}
               style={STYLE[`skill${i}`]}
@@ -625,7 +697,7 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
       )}
 
       {/* Kontak & footer: iPhone + kartu nama */}
-      {fonts && <IPhone fonts={fonts} copy={copy} onOpen={onPhone} position={[phx, TOP, phz]} rotation-y={-0.2} />}
+      {fonts && <IPhone fonts={fonts} copy={copy} f={f} onOpen={onPhone} position={[phx, TOP, phz]} rotation-y={-0.2} />}
 
       {/* Barang CC0 & personal */}
       <Asset src={MODELS.lamp} position={[1.05, TOP + 0.088, -0.36]} rotation-y={-2.6} />
@@ -643,7 +715,13 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
         <>
           {/* Pengalaman: 4 kartu 2×2 */}
           {board.jobs.map((m, i) => (
-            <Pinned key={i} map={m} w={0.3} h={0.187} x={-0.9 + (i % 2) * 0.32} y={BY + 0.24 - Math.floor(i / 2) * 0.23} rot={((i * 7) % 5 - 2) * 0.008} />
+            <Pinned
+              key={i}
+              pop={{ id: `job${i}`, stop: "experience", primaryFor: i === 0 ? "experience" : undefined, alt: `${copy.jobs[i].role} — ${copy.jobs[i].org} (${copy.jobs[i].period}). ${copy.jobs[i].line}` }}
+              map={m}
+              w={0.3}
+              h={0.187}
+              x={-0.9 + (i % 2) * 0.32} y={BY + 0.24 - Math.floor(i / 2) * 0.23} rot={((i * 7) % 5 - 2) * 0.008} />
           ))}
           {/* Sertifikat: 9 gambar asli, grid 3×3 (lebar 29 cm; pegboard tinggi 0.94 m: BY−0.47 … BY+0.47) */}
           {CERT_IMAGES.map((c, i) => {
@@ -652,6 +730,7 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
             return (
               <Pinned
                 key={c.src}
+                pop={{ id: `cert${i}`, stop: "certificates", alt: `Certificate — ${CERT_NAMES[i]}` }}
                 map={certImages[i]}
                 w={w}
                 h={h}
@@ -675,7 +754,13 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
               rotation={[0, 0, [0.04, -0.03, 0.05, -0.05, 0.02, -0.04][i]]}
             />
           ))}
-          <PostIt note={copy.certificates} hands={hands} style={STYLE.certificates} size={0.18} tape position={[0.85, BY + 0.27, 0]} rotation={[0, 0, -0.04]} />
+          <PostIt
+            note={copy.certificates}
+            pop={{ id: "certificates", stop: "certificates", primaryFor: "certificates", alt: noteAlt(copy.certificates) }}
+            hands={hands}
+            style={STYLE.certificates}
+            size={0.18}
+            tape position={[0.85, BY + 0.27, 0]} rotation={[0, 0, -0.04]} />
         </group>
       )}
       {/* Pendidikan: sudut kelulusan (panji, rak buku, topi toga) di dinding kanan pegboard */}
@@ -687,9 +772,6 @@ export function DeskScene({ f, copy, quality: q, onReady, onPhone }: { f: DeskDr
           {fonts && <CalendarPage copy={copy} hands={hands} fonts={fonts} position={[1.355, BY - 0.025, WALL_Z + 0.0015]} rotation={[0, 0, -0.03]} />}
         </>
       )}
-
-      {/* Penjelasan tiap perhentian: teks 3D melayang di sisi kosong bingkai */}
-      <DeskText f={f} copy={copy} />
 
       {/* Bayangan kontak di bawah benda yang menempel di meja (di atas cutting mat, di bawah kertas) */}
       {(() => {

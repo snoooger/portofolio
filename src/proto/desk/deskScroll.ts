@@ -1,22 +1,21 @@
 "use client";
 
-// Scroll jacking berbasis scroll (bukan waktu) untuk meja:
-// - Tiap perhentian punya ZONA TAHAN: sepanjang HOLD dari jarak antarperhentian, kamera diam di perhentian
-//   itu walau pengguna terus scroll (isi section terbaca). Sisa jaraknya = PERJALANAN: kamera bergerak
-//   mengikuti jari/roda ke perhentian berikutnya.
-// - BATAS: momentum (flick/inersia trackpad) berhenti tepat saat masuk zona tahan sebuah perhentian; gestur
-//   yang sama tidak bisa melewatinya. Pengguna harus scroll lagi (gestur baru) melewati zona tahan.
-// - JEDA BACA: tiba di section baru (maju) → scroll maju dikunci sebentar sesuai panjang teks section itu
-//   (bar di pil "Scroll to explore" terisi). Mundur tetap bebas. Kamera tetap digerakkan scroll, bukan waktu.
-// - Bila berhenti di tengah perjalanan, halaman melengkapi ke section searah gerakan (snap halus).
+// Scroll meja yang ringan (tidak "lengket"):
+// - Scroll bebas & halus (Lenis); kamera bergerak mengikuti scroll di sepanjang jalur perhentian.
+// - Tiap perhentian punya ZONA TAHAN kecil (HOLD) supaya kamera benar-benar berhenti tepat di objek.
+// - Tidak ada kunci baca dan tidak ada batas momentum: satu gestur boleh melewati beberapa section.
+// - Setelah scroll berhenti di tengah perjalanan, halaman melengkapi ke perhentian terdekat — condong
+//   searah gerakan terakhir (cukup 22% perjalanan untuk lanjut ke section berikutnya).
 // Semua posisi dihitung dari tinggi layar saat ini, jadi tetap tepat di HP saat bilah alamat muncul/hilang.
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import type Lenis from "lenis";
 
 /** Porsi jarak antarperhentian yang menjadi zona tahan (sisanya perjalanan kamera). */
-export const HOLD = 0.24;
+export const HOLD = 0.12;
 /** Tinggi tiap perhentian (svh) — menentukan berapa jauh scroll antarperhentian. */
-export const STOP_SVH = 80;
+export const STOP_SVH = 70;
+/** Jeda setelah scroll terakhir sebelum snap (ms). */
+const IDLE = 150;
 
 export type DeskDrive = {
   /** Perhentian 0 … n−1, tepat bilangan bulat di zona tahan. */
@@ -25,8 +24,6 @@ export type DeskDrive = {
   raw: number;
   /** Progres di dalam zona tahan 0–1 (−1 bila sedang dalam perjalanan). */
   hold: number;
-  /** Progres jeda baca 0–1 (1 = boleh lanjut ke section berikutnya). */
-  lock: number;
 };
 
 export type Geom = { top: number; S: number; h: number; end: number; n: number };
@@ -60,159 +57,92 @@ export function driveOf(y: number, g: Geom): DeskDrive {
     const [A, B] = zone(g, s);
     hold = B > A ? Math.min(1, Math.max(0, (y - A) / (B - A))) : 1;
   }
-  return { current, raw, hold, lock: 1 };
+  return { current, raw, hold };
 }
 
 const lenisOf = () => (window as unknown as { __lenis?: Lenis }).__lenis;
 
-/**
- * Menghitung DeskDrive tiap frame & memasang batas momentum + snap pada Lenis.
- * `onFooterGap`: posisi di antara akhir meja & dasar halaman (footer) → lengkapi ke salah satunya.
- */
-export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number, dwell: (k: number) => number) {
+/** Menghitung DeskDrive tiap frame & memasang snap lembut + navigasi keyboard pada Lenis. */
+export function useDeskScroll(root: RefObject<HTMLElement | null>, n: number) {
   // Objek stabil yang dimutasi tiap frame (dibaca scene 3D & UI lewat .current, seperti ref).
-  const [f] = useState<DeskDrive>(() => ({ current: 0, raw: 0, hold: 0, lock: 1 }));
-  // Kunci jeda baca + fungsi lamanya (diperbarui tiap render, mis. saat bahasa berganti).
-  const [lk] = useState(() => ({ start: 0, until: 0 }));
-  const dwellRef = useRef(dwell);
-  useEffect(() => {
-    dwellRef.current = dwell;
-  });
+  const [f] = useState<DeskDrive>(() => ({ current: 0, raw: 0, hold: 0 }));
 
   useEffect(() => {
     let raf = 0;
     const loop = () => {
       const el = root.current;
       if (el) Object.assign(f, driveOf(window.scrollY, geom(el, n)));
-      const now = performance.now();
-      f.lock = now < lk.until ? (now - lk.start) / (lk.until - lk.start) : 1;
       raf = requestAnimationFrame(loop);
     };
     loop();
     return () => cancelAnimationFrame(raf);
-  }, [f, lk, root, n]);
+  }, [f, root, n]);
 
   useEffect(() => {
     let lenis: Lenis | undefined;
-    let gesture = 0, lastWheel = 0, lastMag = 0;
-    let arrived = { k: -1, gesture: -1, dir: 0 };
     let timer = 0;
-    const startLock = (k: number) => {
-      const ms = k > 0 ? dwellRef.current(k) : 0;
-      lk.start = performance.now();
-      lk.until = lk.start + ms;
-    };
-    const locked = () => performance.now() < lk.until;
+    let lastDir = 1;
 
-    const virtualScroll = (data: { deltaX: number; deltaY: number; event: Event }) => {
-      const e = data.event;
-      const type = e.type;
-      const now = performance.now();
-      if (type === "touchstart") gesture++;
-      else if (type === "wheel") {
-        // Gestur baru: ada jeda, ATAU dorongan baru (delta membesar lagi). Inersia trackpad selalu mengecil,
-        // jadi hanya sisa inersia yang tertahan — dorongan baru langsung jalan tanpa menunggu inersia habis.
-        const mag = Math.abs(data.deltaY);
-        if (now - lastWheel > 160 || mag > lastMag * 1.25 + 4) gesture++;
-        lastWheel = now;
-        lastMag = mag;
-      }
+    const snap = () => {
       const el = root.current;
-      if ((e as WheelEvent).ctrlKey || data.deltaY === 0 || !lenis || !el) return true;
+      if (!el || !lenis || lenis.isStopped || lenis.isTouching || lenis.isScrolling === "smooth") return;
       const g = geom(el, n);
-      const isTouch = type.startsWith("touch");
-      const inertia = type === "touchend";
-      const cur = lenis.targetScroll;
-      // Hanya di bagian meja; di area footer scroll bebas.
-      if (cur > g.end + 1) return true;
-      const d = inertia ? Math.sign(data.deltaY) * Math.abs(lenis.velocity) ** lenis.options.touchInertiaExponent : data.deltaY;
-      const dir = Math.sign(d);
-      const block = () => {
-        if (e.cancelable) e.preventDefault();
-        return false;
-      };
-      // Jeda baca: maju dikunci sampai bar terisi.
-      if (dir > 0 && locked()) return block();
-      // Gestur yang sama setelah tiba di sebuah perhentian tidak bisa melanjutkan ke arah yang sama.
-      if (arrived.gesture === gesture && arrived.dir === dir) return block();
-      const next = cur + d;
-      for (let k = 0; k < n; k++) {
-        const [A, B] = zone(g, k);
-        const hit = dir > 0 ? cur < A - 0.5 && next >= A : cur > B + 0.5 && next <= B;
-        if (!hit) continue;
-        // Masuk zona tahan: berhenti di tepinya, gestur ini selesai.
-        const to = dir > 0 ? A + 1 : B - 1;
-        arrived = { k, gesture, dir };
-        if (dir > 0) startLock(k);
-        if (e.cancelable) e.preventDefault();
-        lenis.scrollTo(to, {
-          programmatic: false,
-          lerp: isTouch && lenis.options.syncTouch ? (inertia ? lenis.options.syncTouchLerp : 1) : lenis.options.lerp,
-        });
-        return false;
+      const y = window.scrollY;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      // Di antara meja & footer → lengkapi ke salah satunya.
+      if (y > g.end + 4 && y < max - 4) {
+        lenis.scrollTo(lastDir > 0 ? (y - g.end > (max - g.end) * 0.2 ? max : g.end) : y - g.end < (max - g.end) * 0.8 ? g.end : max, { duration: 0.8 });
+        return;
       }
-      return true;
+      const d = driveOf(y, g);
+      if (d.hold >= 0) return;
+      const k = Math.floor(d.current);
+      const t = d.current - k;
+      const forward = lastDir > 0 ? t > 0.22 : t > 0.78;
+      const to = forward ? g.top + (k + 1) * g.S : g.top + k * g.S;
+      lenis.scrollTo(to, { duration: 0.75 });
     };
 
-    // Berhenti di tengah perjalanan → lengkapi ke tepi zona tahan searah gerakan. Di antara meja & footer →
-    // lengkapi ke salah satunya.
     const onScroll = () => {
+      if (lenis && lenis.direction) lastDir = lenis.direction;
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        const el = root.current;
-        if (!el || !lenis || lenis.isTouching || lenis.isScrolling === "smooth") return;
-        const g = geom(el, n);
-        const y = window.scrollY;
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        if (y > g.end + 4 && y < max - 4) {
-          lenis.scrollTo(y - g.end > (max - g.end) / 2 ? max : g.end, { duration: 0.8 });
-          return;
-        }
-        const d = driveOf(y, g);
-        if (d.hold >= 0) return;
-        // Lengkapi searah gerakan terakhir (scroll pendek tetap maju/mundur satu section, tidak ditarik
-        // balik); hanya gerak sangat kecil (kemungkinan tak sengaja) yang dikembalikan.
-        const k = Math.floor(d.current);
-        const t = d.current - k;
-        const ahead = lenis.direction >= 0;
-        const forward = ahead ? t > 0.12 : t > 0.88;
-        const to = forward ? zone(g, k + 1)[0] + 1 : zone(g, k)[1] - 1;
-        lenis.scrollTo(to, { duration: 0.55, onComplete: () => forward && ahead && startLock(k + 1) });
-      }, 380);
+      timer = window.setTimeout(snap, IDLE);
     };
 
-    // Keyboard (panah, PageUp/Down, spasi): satu tekan = satu perhentian (n = footer), ikut jeda baca.
+    // Keyboard (panah, PageUp/Down, spasi): satu tekan = satu perhentian (n = footer).
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName))) return;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (t && /^(BUTTON|A)$/.test(t.tagName) && e.key === " ") return; // spasi = aktifkan tombol/tautan
+      if (lenis?.isStopped) return;
       const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? (e.shiftKey && e.key === " " ? -1 : 1) : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
       const el = root.current;
       if (!dir || !el || !lenis) return;
       e.preventDefault();
-      if (dir > 0 && locked()) return;
       const g = geom(el, n);
       const cur = window.scrollY > g.end + 4 ? n : Math.round(f.current);
       const k = Math.min(n, Math.max(0, cur + dir));
       if (k === cur) return;
-      lenis.scrollTo(stopY(el, k, n), { duration: 1.0, lock: true, onComplete: () => dir > 0 && k < n && startLock(k) });
+      lenis.scrollTo(stopY(el, k, n), { duration: 0.9 });
     };
 
     const attach = window.setInterval(() => {
       lenis = lenisOf();
       if (!lenis) return;
       window.clearInterval(attach);
-      lenis.options.virtualScroll = virtualScroll;
       lenis.on("scroll", onScroll);
       window.addEventListener("keydown", onKey);
+      // Sentuhan: snap setelah jari diangkat & inersia habis.
+      window.addEventListener("touchend", onScroll, { passive: true });
     }, 100);
     return () => {
       window.clearInterval(attach);
       window.clearTimeout(timer);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("touchend", onScroll);
       lenis?.off("scroll", onScroll);
-      if (lenis) lenis.options.virtualScroll = undefined;
     };
-  }, [f, lk, root, n]);
+  }, [f, root, n]);
 
   return f;
 }
@@ -222,4 +152,15 @@ export function stopY(el: HTMLElement, k: number, n: number) {
   if (k >= n) return document.documentElement.scrollHeight - window.innerHeight;
   const g = geom(el, n);
   return g.top + k * g.S;
+}
+
+const sstep = (x: number, a: number, b: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+/** Interpolasi antar perhentian dengan "diam" sejenak di sekitar tiap perhentian. */
+export function stopMix(f: number, count: number, hold = 0.22) {
+  const g = Math.min(count - 1, Math.max(0, Math.floor(f)));
+  const n = Math.min(count - 1, g + 1);
+  return { a: g, b: n, t: sstep(f - g, hold, 1 - hold) };
 }

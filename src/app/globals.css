@@ -51,6 +51,12 @@ body {
   text-transform: uppercase;
 }
 
+/* Versi ringan (tanpa akselerasi grafis) vs meja 3D — dipilih skrip inline sebelum first paint */
+html:not(.lite) .lite-only,
+html.lite .desk-only {
+  display: none;
+}
+
 html.lenis,
 html.lenis body {
   height: auto;

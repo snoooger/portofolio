@@ -3,12 +3,16 @@
 // iPhone yang tergeletak di meja (perhentian Contact): lock screen dengan notifikasi yang mengantar ke
 // footer. Layar bisa diketuk. Bila model HD iPhone sudah disalin ke
 // /assets-3d/sketchfab/iphone.glb, set HAS_IPHONE_MODEL = true; kalau belum, dipakai bodi buatan sendiri.
-import { useEffect, useMemo } from "react";
-import type { ThreeElements } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useFrame, type ThreeElements } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Fonts } from "../final/useFonts";
 import type { Copy } from "./copy";
 import { Model, type Fit } from "./Model";
+import { Poppable } from "./Poppable";
+import { deskIndex } from "./stops";
+import type { DeskDrive } from "./deskScroll";
+import { instagramProfile, loadIgImages, type IgImages } from "./instagram";
 
 const PW = 0.0767, PH = 0.1596, PD = 0.0083; // iPhone 15 Pro Max (m)
 const SW = 590, SH = 1278; // resolusi tekstur layar
@@ -296,30 +300,82 @@ function Body() {
   );
 }
 
-export function IPhone({ fonts, copy, onOpen, ...props }: ThreeElements["group"] & { fonts: Fonts; copy: Copy; onOpen?: () => void }) {
+export function IPhone({
+  fonts,
+  copy,
+  f,
+  onOpen,
+  ...props
+}: ThreeElements["group"] & { fonts: Fonts; copy: Copy; f: DeskDrive; onOpen?: () => void }) {
   const screen = useMemo(() => lockScreen(fonts, copy), [fonts, copy]);
   useEffect(() => () => screen.dispose(), [screen]);
+  // Profil Instagram (About): gambar dimuat setelah adegan siap, tidak menghambat pemuatan awal.
+  const [imgs, setImgs] = useState<IgImages | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const go = () => loadIgImages().then((r) => alive && setImgs(r)).catch(() => {});
+    const t = window.setTimeout(go, 600);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+  }, []);
+  const ig = useMemo(() => (imgs ? instagramProfile(fonts, copy.ig, imgs) : null), [fonts, copy, imgs]);
+  useEffect(() => () => ig?.dispose(), [ig]);
 
-  const screenGeo = useMemo(() => roundedPlane(PW - 0.0034, PH - 0.0034, 0.0098), []);
+  const SWm = PW - 0.0034, SHm = PH - 0.0034;
+  const screenGeo = useMemo(() => roundedPlane(SWm, SHm, 0.0098), [SWm, SHm]);
   useEffect(() => () => screenGeo.dispose(), [screenGeo]);
+  const lockMat = useRef<THREE.MeshBasicMaterial>(null);
+  const igMat = useRef<THREE.MeshBasicMaterial>(null);
+  const igMesh = useRef<THREE.Mesh>(null);
+  const ABOUT = deskIndex("about"), CONTACT = deskIndex("contact");
+
+  // Di About aplikasi "terbuka": profil membesar dari tengah layar (zoom ala iOS) menutupi lock screen.
+  useFrame((_, dt) => {
+    const d = Math.abs(f.current - ABOUT);
+    const want = ig ? 1 - THREE.MathUtils.smoothstep(d, 0.3, 0.75) : 0;
+    const m = igMat.current, mesh = igMesh.current;
+    if (!m || !mesh) return;
+    const o = THREE.MathUtils.damp(m.opacity, want, 6, dt);
+    m.opacity = o;
+    mesh.visible = o > 0.005;
+    const s = 0.82 + 0.18 * THREE.MathUtils.smoothstep(o, 0, 1);
+    mesh.scale.set(s, s, 1);
+    if (lockMat.current) lockMat.current.color.setScalar(1 - 0.6 * o);
+  });
+
   return (
     <group {...props}>
       {HAS_IPHONE_MODEL ? <Model src={IPHONE_SRC} fit={IPHONE_FIT} /> : <Body />}
-      {/* Layar: kontak + footer, baris tautan bisa diklik */}
-      {/* Layar: lock screen; ketuk notifikasi → buka footer (CTA & kontak) */}
-      <mesh
-        rotation-x={-Math.PI / 2}
-        position={[0, PD + 0.0006, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpen?.();
-        }}
-        onPointerOver={() => (document.body.style.cursor = "pointer")}
-        onPointerOut={() => (document.body.style.cursor = "")}
-      >
-        <primitive object={screenGeo} attach="geometry" />
-        <meshBasicMaterial map={screen} toneMapped={false} />
-      </mesh>
+      {/* Layar: lock screen (+ profil Instagram di About). Klik → popup; di Contact → buka footer. */}
+      <group rotation-x={-Math.PI / 2} position={[0, PD + 0.0006, 0]}>
+        <Poppable
+          id="iphone"
+          stop={() => (Math.abs(f.current - CONTACT) < 0.5 ? "contact" : "about")}
+          w={SWm}
+          h={SHm}
+          kind="screen"
+          lift={0}
+          primaryFor="about"
+          image={() => ((Math.abs(f.current - CONTACT) < 0.5 || !ig ? screen : ig).image as HTMLCanvasElement)}
+          alt={() => `${copy.ig.name} — ${copy.ig.category}. ${copy.ig.bio.join(" ")}`}
+          onPick={() => {
+            if (Math.abs(f.current - CONTACT) < 0.5) {
+              onOpen?.();
+              return true;
+            }
+            return false;
+          }}
+        >
+          <mesh geometry={screenGeo}>
+            <meshBasicMaterial ref={lockMat} map={screen} toneMapped={false} />
+          </mesh>
+          <mesh ref={igMesh} geometry={screenGeo} position={[0, 0, 0.00006]} visible={false} renderOrder={2}>
+            <meshBasicMaterial ref={igMat} map={ig} transparent opacity={0} depthWrite={false} toneMapped={false} />
+          </mesh>
+        </Poppable>
+      </group>
     </group>
   );
 }

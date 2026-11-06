@@ -3,15 +3,15 @@
 // Workstation: monitor 27" yang tersambung ke Mac mini, dan keyboard. Layar menampilkan proyek
 // yang sedang dibahas (Sonar, PromptedSite, ViralEngine, Security) dan berganti mengikuti scroll.
 // Di bezel kiri-bawah ada tumpukan post-it: lembar teratas berganti per proyek, lembar lama terkelupas jatuh.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFrame, type ThreeElements } from "@react-three/fiber";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useFrame, useThree, type ThreeElements } from "@react-three/fiber";
 import * as THREE from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 import { Cable } from "../hd/Devices";
 import { thesisScreen, viralDashboard } from "./screens2";
-import { promptedSite, sonarSite, type SiteFonts } from "./sites";
-import { canvasFont } from "../fonts";
+import { PROMPTED_URL, SONAR_URL, canvasContent, liveSites } from "./sites";
 import { MacDesktop } from "./macos";
+import { Poppable } from "./Poppable";
 import { HD, Model, type Fit } from "./Model";
 import type { Drive } from "../objects/types";
 import type { Fonts } from "../final/useFonts";
@@ -22,11 +22,13 @@ const SCREEN_MESH = "NYVmzMLiovxElXF";
 const MAC_FIT: Fit = { axis: "x", size: 0.197 };
 const KEYB_FIT: Fit = { axis: "x", size: 0.33 };
 /** Warna rata-rata tiap tampilan layar, untuk cahaya yang dipantulkan layar ke meja & keyboard. */
-const SCREEN_GLOW = ["#8e8aa0", "#f1ebfb", "#9fb3d6", "#b9c3cf"];
+const SCREEN_GLOW = ["#e9dcc0", "#6d5fb0", "#9fb3d6", "#d9d3ca"];
 RectAreaLightUniformsLib.init(); // sekali per modul; wajib untuk RectAreaLight di WebGLRenderer
 
 /** Tumpukan post-it yang lembar atasnya berganti mengikuti `index`. */
-export function NotePad({ notes, index, size = 0.12, ...props }: ThreeElements["group"] & { notes: THREE.Texture[]; index: Drive; size?: number }) {
+export type NoteMeta = { stop: string; alt: string; color?: string };
+
+export function NotePad({ notes, meta, index, size = 0.12, ...props }: ThreeElements["group"] & { notes: THREE.Texture[]; meta: NoteMeta[]; index: Drive; size?: number }) {
   const top = useRef<THREE.MeshStandardMaterial>(null);
   const fallMat = useRef<THREE.MeshStandardMaterial>(null);
   const pivot = useRef<THREE.Group>(null);
@@ -86,10 +88,23 @@ export function NotePad({ notes, index, size = 0.12, ...props }: ThreeElements["
           <meshStandardMaterial color={i === 0 ? "#efe1a2" : "#e6d690"} roughness={0.9} />
         </mesh>
       ))}
-      <mesh>
-        <planeGeometry args={[size, size]} />
-        <meshStandardMaterial ref={top} map={notes[0]} roughness={0.85} />
-      </mesh>
+      {/* Lembar teratas bisa diklik → popup (lembar yang sedang tampil) */}
+      <Poppable
+        id="monitor-note"
+        stop={() => meta[state.current.cur < 0 ? 0 : state.current.cur].stop}
+        w={size}
+        h={size}
+        lift={0.002}
+        image={() => notes[Math.max(0, state.current.cur)].image as HTMLCanvasElement}
+        alt={() => meta[Math.max(0, state.current.cur)].alt}
+        color={() => meta[Math.max(0, state.current.cur)].color}
+        primaryFor="monitor"
+      >
+        <mesh>
+          <planeGeometry args={[size, size]} />
+          <meshStandardMaterial ref={top} map={notes[0]} roughness={0.85} />
+        </mesh>
+      </Poppable>
       {/* Selotip menjembatani tepi atas post-it dan bezel bawah monitor */}
       <mesh position={[0, size / 2, 0.0015]} rotation-z={-0.05}>
         <planeGeometry args={[size * 0.5, size * 0.15]} />
@@ -111,47 +126,47 @@ export function Workstation({
   screen,
   scroll,
   notes,
+  noteMeta,
   noteIndex,
   glow = false,
   ...props
-}: ThreeElements["group"] & { fonts: Fonts; screen: Drive; scroll: Drive; notes: THREE.Texture[]; noteIndex: Drive; glow?: boolean }) {
+}: ThreeElements["group"] & { fonts: Fonts; screen: Drive; scroll: Drive; notes: THREE.Texture[]; noteMeta: NoteMeta[]; noteIndex: Drive; glow?: boolean }) {
   const area = useRef<THREE.RectAreaLight>(null);
   const panel = useRef<THREE.Mesh | null>(null);
   const placed = useRef(false);
   const glowColor = useMemo(() => SCREEN_GLOW.map((c) => new THREE.Color(c)), []);
-  // Tiap proyek tampil di dalam jendela aplikasi pada desktop bergaya macOS (menu bar & dock kaca).
-  // Font asli situs Sonar & PromptedSite dimuat dulu (async) sebelum layarnya digambar.
-  const [site, setSite] = useState<SiteFonts | null>(null);
-  useEffect(() => {
-    let alive = true;
-    Promise.all([
-      canvasFont("--font-pixelify", "700 40px"),
-      canvasFont("--font-worksans", "500 20px"),
-      canvasFont("--font-worksans", "400 20px"),
-      canvasFont("--font-bricolage", "800 40px"),
-      canvasFont("--font-bricolage", "300 40px"),
-      canvasFont("--font-bricolage", "500 20px"),
-    ]).then(([pixel, work, , brico]) => alive && setSite({ pixel, work, brico, mono: fonts.mono }));
-    return () => {
-      alive = false;
-    };
-  }, [fonts]);
+  // Tiap proyek tampil di desktop macOS: dua situs live (tangkapan layar produksi) di Safari,
+  // ViralEngine & skripsi di jendela aplikasi.
+  const invalidate = useThree((st) => st.invalidate);
+  const live = useMemo(() => liveSites(), []);
   const desktops = useMemo(() => {
-    if (!site) return null;
     const src = (t: THREE.Texture) => {
       const c = t.image as HTMLCanvasElement;
       t.dispose();
       return c;
     };
+    const menus = ["File", "Edit", "View", "History", "Bookmarks", "Window", "Help"];
     return [
-      new MacDesktop(sonarSite(site), fonts, { app: "Browser", title: "sonar-seo.vercel.app", url: true, active: 1 }),
-      new MacDesktop(promptedSite(site), fonts, { app: "Browser", title: "promptedsite.com", dark: true, url: true, active: 1 }),
-      new MacDesktop(src(viralDashboard(fonts)), fonts, { app: "Browser", title: "ViralEngine — Trend radar", dark: true, url: true, active: 1 }),
-      new MacDesktop(src(thesisScreen(fonts)), fonts, { app: "Notebook", title: "thesis.ipynb", active: 5 }),
+      new MacDesktop(live.sonar, fonts, { app: "Safari", menus, kind: "safari", title: SONAR_URL, running: "safari" }),
+      new MacDesktop(live.prompted, fonts, { app: "Safari", menus, kind: "safari", title: PROMPTED_URL, running: "safari" }),
+      new MacDesktop(canvasContent(src(viralDashboard(fonts)), "#0e0f12", true), fonts, { app: "ViralEngine", menus: ["File", "Edit", "View", "Window", "Help"], kind: "app", title: "ViralEngine — Trend radar", running: "terminal" }),
+      new MacDesktop(canvasContent(src(thesisScreen(fonts)), "#e9e4dc"), fonts, { app: "Jupyter", menus: ["File", "Edit", "View", "Run", "Kernel", "Help"], kind: "app", title: "thesis.ipynb", running: "jupyter" }),
     ];
-  }, [fonts, site]);
-  useEffect(() => () => desktops?.forEach((d) => d.dispose()), [desktops]);
-  const screens = useMemo(() => desktops?.map((d) => d.texture) ?? [], [desktops]);
+  }, [fonts, live]);
+  // Tangkapan layar situs dimuat setelah adegan tampil (tidak ikut antrean pemuatan awal).
+  useEffect(() => {
+    let alive = true;
+    const t = window.setTimeout(() => {
+      live.sonar.load().then(() => alive && ((desktops[0].dirty = true), invalidate())).catch(() => {});
+      live.prompted.load().then(() => alive && ((desktops[1].dirty = true), invalidate())).catch(() => {});
+    }, 1800);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+  }, [live, desktops, invalidate]);
+  useEffect(() => () => desktops.forEach((d) => d.dispose()), [desktops]);
+  const screens = useMemo(() => desktops.map((d) => d.texture), [desktops]);
 
   // Material layar dipasang ke panel layar model Studio Display.
   const mat = useRef<THREE.MeshBasicMaterial>(new THREE.MeshBasicMaterial({ color: "#0a0a0a", toneMapped: false }));
@@ -179,7 +194,7 @@ export function Workstation({
     // Layar mati (gelap) di luar bagian proyek; menyala dengan kedip singkat saat berganti.
     const level = on ? 0.25 + 0.75 * wake.current : 0.06;
     m.color.setScalar(THREE.MathUtils.damp(m.color.r, level, 8, dt));
-    if (i === 1) desktops?.[1].draw(scroll.current); // halaman PromptedSite digulir di dalam jendela
+    if (on) desktops[i].draw(i < 2 ? scroll.current : 0); // halaman situs digulir di dalam jendela
 
     // Cahaya layar: area light seukuran panel, sedikit di depannya, menghadap pengguna.
     const L = area.current;
@@ -206,7 +221,7 @@ export function Workstation({
       {glow && <rectAreaLight ref={area} intensity={0} color="#8e8aa0" />}
       {/* Menggantung dari bezel bawah (tepi bawah bingkai y 0.121, permukaan depan z ≈ 0.066), diselotip
           di tepi atasnya; bidang post-it mengikuti kemiringan panel ±8°. */}
-      <NotePad notes={notes} index={noteIndex} size={0.13} position={[0.2, 0.0545, 0.0761]} rotation={[-0.138, 0, 0]} />
+      <NotePad notes={notes} meta={noteMeta} index={noteIndex} size={0.13} position={[0.2, 0.0545, 0.0761]} rotation={[-0.138, 0, 0]} />
 
       {/* Mac mini (model HD) di kanan monitor + kabel ke monitor */}
       {/* Diputar 180°: port di belakang menghadap dinding, logo & LED di depan */}

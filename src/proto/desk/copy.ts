@@ -1,8 +1,10 @@
-// Teks prototipe meja (lanjutan P1), dua bahasa. Semua penjelasan ditulis di post-it, jadi kalimatnya
-// dibuat pendek. Tidak diterjemahkan: nama proyek, "Self-Running Machines", nama tools, institusi,
+// Teks prototipe meja (lanjutan P1), dua bahasa. Semua penjelasan ditulis di benda (post-it, kartu,
+// layar iPhone/monitor) yang bisa dibuka sebagai popup, jadi kalimatnya dibuat pendek. Tidak diterjemahkan: nama proyek, "Self-Running Machines", nama tools, institusi,
 // istilah teknis (SEO/AEO/GEO, dashboard, velocity, warm-up), dan angka.
 
 export type Lang = "en" | "id";
+import type { IgCopy } from "./instagram";
+
 export type Note = { title: string; lines: string[]; facts?: { v: string; k: string }[]; color?: string };
 
 export const NAME = "Zaidan Jibran Azhar";
@@ -12,7 +14,16 @@ export const GITHUB = "https://github.com/snoooger";
 
 /** Kredit model 3D (CC BY 4.0 dari Sketchfab, CC0 dari Poly Haven). Wajib tampil untuk CC BY. */
 const CREDITS =
-  "3D: “Custom - Mechanical Keyboard” by unknown.fbx · “Apple Studio Display” by alboxer2000_ · “Apple Mac Mini M1” by DatSketch · “Android Phone - Xiaomi Redmi 9” by Miguel Adão · “IKEA Pegboard” by jowilam — CC BY 4.0, Sketchfab · Lamp, plant, wood, parquet, HDRI: Poly Haven (CC0)";
+  "3D: “Custom - Mechanical Keyboard” by unknown.fbx · “Apple Studio Display” by alboxer2000_ · “Apple Mac Mini M1” by DatSketch · “Android Phone - Xiaomi Redmi 9” by Miguel Adão · “IKEA Pegboard” by jowilam — CC BY 4.0, Sketchfab · Lamp, plant, wood, parquet, HDRI: Poly Haven (CC0) · Music: “Chill lofi inspired” by omfgdude, OpenGameArt (CC0)";
+
+const POSTS: IgCopy["posts"] = [
+  { title: "Sonar", sub: "", bg: "", fg: "" },
+  { title: "PromptedSite", sub: "", bg: "", fg: "" },
+  { title: "FarmAgent", sub: "12+ phones · 6 platforms", bg: "#1d3a2b", fg: "#f5c84c" },
+  { title: "ViralEngine", sub: "trend radar", bg: "#15171c", fg: "#7cf2b0" },
+  { title: "Security", sub: "responsible disclosure", bg: "#c2552f", fg: "#fff3da" },
+  { title: "Thesis", sub: "BiLSTM · 97.62%", bg: "#e9e4dc", fg: "#1e1b18" },
+];
 
 export const YELLOW = "#F6DD7A";
 export const PINK = "#F2B8A8";
@@ -25,6 +36,23 @@ const en = {
   role: "Fullstack Developer & AI Automation Engineer",
   loading: "Setting up the desk",
   scroll: { hint: "Scroll to explore", touch: "Swipe up to explore" },
+  popup: { close: "Close", read: "Open note", screen: "Open screen" },
+  music: { on: "Mute music", off: "Play music" },
+  fallback: {
+    note: "This browser has no hardware graphics acceleration, so you're seeing the light version of the 3D desk.",
+    load: "Load the 3D desk anyway",
+  },
+  ig: {
+    handle: "zaidanjibran",
+    name: "Zaidan Jibran Azhar",
+    category: "Fullstack Developer & AI Automation Engineer",
+    bio: ["I build & ship products end to end:", "API, backend, frontend, AI agents, deploy.", "AI automation · fullstack web · security", "B.Eng. Informatics, IT PLN · GPA 3.65"],
+    link: "linkedin.com/in/zaidanjibranazhar",
+    stats: [{ v: "5", k: "projects" }, { v: "4", k: "roles" }, { v: "9", k: "certificates" }],
+    buttons: ["Follow", "Message", "Email"],
+    highlights: ["AI", "Web dev", "Security", "Projects", "Certs"],
+    posts: POSTS,
+  } as IgCopy,
   calendar: { note: "Graduated!", days: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] },
   /** Kertas hero & layar pemuatan: "Portfolio" + nama lengkap. */
   portfolio: "Portfolio",
@@ -101,11 +129,11 @@ const en = {
     caption: "Open to fullstack & AI automation roles · freelance builds",
     top: "Back to the desk",
   },
-  /** Teks 3D: ringkasan tiap section. Detail ada di post-it / benda di scene, jadi tidak diulang. */
+  /** Ringkasan tiap section: keterangan di popup catatan (detail ada di post-it / benda itu sendiri). */
   summary: {
     about: { title: "Hi, I'm Zaidan", text: "Fullstack developer & AI automation engineer." },
     farmagent: { title: "FarmAgent", text: "Phone-farm automation: real phones auto-post and warm up accounts on 6 social platforms." },
-    sonar: { title: "Sonar", text: "AI agents that improve how search engines and AI answers see a website.", cta: { label: "Visit sonar-seo.vercel.app", href: "https://sonar-seo.vercel.app" } },
+    sonar: { title: "Sonar", text: "AI agents that improve how search engines and AI answers see a website.", cta: { label: "Visit usesonarnow.com", href: "https://usesonarnow.com" } },
     promptedsite: { title: "PromptedSite", text: "A marketplace of motion prompts that turn into websites.", cta: { label: "Visit promptedsite.com", href: "https://promptedsite.com" } },
     viralengine: { title: "ViralEngine", text: "Spots what goes viral, and what is about to, on TikTok, Instagram, YouTube, Facebook, Douyin and RedNote." },
     security: { title: "Security & thesis", text: "Pentesting, a responsible disclosure to Pemprov DKI Jakarta, and an ML thesis." },
@@ -125,6 +153,23 @@ const id: typeof en = {
   role: "Fullstack Developer & AI Automation Engineer",
   loading: "Menyiapkan meja",
   scroll: { hint: "Scroll untuk menjelajah", touch: "Geser ke atas" },
+  popup: { close: "Tutup", read: "Buka catatan", screen: "Buka layar" },
+  music: { on: "Matikan musik", off: "Putar musik" },
+  fallback: {
+    note: "Browser ini tidak memakai akselerasi grafis hardware, jadi yang tampil versi ringan dari meja 3D.",
+    load: "Tetap muat meja 3D",
+  },
+  ig: {
+    handle: "zaidanjibran",
+    name: "Zaidan Jibran Azhar",
+    category: "Fullstack Developer & AI Automation Engineer",
+    bio: ["Membangun & merilis produk end to end:", "API, backend, frontend, AI agent, deploy.", "Otomasi AI · web fullstack · security", "Sarjana Informatika, IT PLN · IPK 3.65"],
+    link: "linkedin.com/in/zaidanjibranazhar",
+    stats: [{ v: "5", k: "proyek" }, { v: "4", k: "posisi" }, { v: "9", k: "sertifikat" }],
+    buttons: ["Ikuti", "Kirim pesan", "Email"],
+    highlights: ["AI", "Web dev", "Security", "Proyek", "Sertifikat"],
+    posts: POSTS,
+  },
   calendar: { note: "Lulus!", days: ["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"] },
   portfolio: "Portofolio",
   about: [
@@ -200,7 +245,7 @@ const id: typeof en = {
   summary: {
     about: { title: "Halo, saya Zaidan", text: "Fullstack developer & AI automation engineer." },
     farmagent: { title: "FarmAgent", text: "Otomasi phone farm: HP sungguhan auto-post & warm-up akun di 6 platform sosial media." },
-    sonar: { title: "Sonar", text: "Agen AI yang memperbaiki cara mesin pencari dan jawaban AI melihat sebuah situs.", cta: { label: "Kunjungi sonar-seo.vercel.app", href: "https://sonar-seo.vercel.app" } },
+    sonar: { title: "Sonar", text: "Agen AI yang memperbaiki cara mesin pencari dan jawaban AI melihat sebuah situs.", cta: { label: "Kunjungi usesonarnow.com", href: "https://usesonarnow.com" } },
     promptedsite: { title: "PromptedSite", text: "Marketplace motion prompt yang menjadi website.", cta: { label: "Kunjungi promptedsite.com", href: "https://promptedsite.com" } },
     viralengine: { title: "ViralEngine", text: "Menangkap konten yang viral dan yang akan viral di TikTok, Instagram, YouTube, Facebook, Douyin, dan RedNote." },
     security: { title: "Security & skripsi", text: "Pentesting, responsible disclosure ke Pemprov DKI Jakarta, dan skripsi machine learning." },

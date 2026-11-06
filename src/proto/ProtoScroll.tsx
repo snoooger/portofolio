@@ -2,23 +2,17 @@
 
 import { useEffect } from "react";
 import Lenis from "lenis";
-import { gsap, ScrollTrigger } from "@/lib/gsap";
 
-/** Lenis tersinkron dengan ScrollTrigger (sama seperti situs utama). */
+/** Scroll halus Lenis (rAF bawaan Lenis; tanpa GSAP supaya bundel awal ringan). */
 export function ProtoScroll() {
   useEffect(() => {
-    // Reduced motion tidak mematikan Lenis: Lenis sendiri membuat scroll instan (tanpa animasi halus),
-    // sementara jeda baca & batas per section di meja tetap berlaku.
-    // syncTouch: sentuhan juga ditangani Lenis, jadi batas momentum di tiap perhentian meja berlaku di HP.
-    const lenis = new Lenis({ lerp: 0.12, smoothWheel: true, syncTouch: true, syncTouchLerp: 0.1, touchMultiplier: 1.15 });
-    lenis.on("scroll", ScrollTrigger.update);
+    // Reduced motion tidak mematikan Lenis: Lenis sendiri membuat scroll instan (tanpa animasi halus).
+    // syncTouch: sentuhan juga ditangani Lenis supaya snap per perhentian meja konsisten di HP.
+    const lenis = new Lenis({ autoRaf: true, lerp: 0.1, smoothWheel: true, syncTouch: true, syncTouchLerp: 0.085, touchMultiplier: 1.2 });
     (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
-    const tick = (time: number) => lenis.raf(time * 1000);
-    gsap.ticker.add(tick);
-    gsap.ticker.lagSmoothing(0);
     return () => {
-      gsap.ticker.remove(tick);
       lenis.destroy();
+      (window as unknown as { __lenis?: Lenis }).__lenis = undefined;
     };
   }, []);
   return null;

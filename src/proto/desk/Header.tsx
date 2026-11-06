@@ -1,10 +1,10 @@
 "use client";
 
 // Header prototipe meja: satu bilah kaca hijau tua (senada footer) yang melayang di atas scene. Kiri logo,
-// tengah navigasi dengan penanda section aktif (mengikuti scroll), kanan toggle bahasa EN/ID.
+// tengah navigasi dengan penanda section aktif (mengikuti scroll), kanan tombol musik & toggle bahasa EN/ID.
 // Garis progres tipis di bawah bilah menunjukkan posisi di sepanjang perjalanan meja.
 // Di HP navigasi pindah ke menu tarik-turun.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Drive } from "../objects/types";
 import type { Copy, Lang } from "./copy";
 import { NAME } from "./copy";
@@ -27,7 +27,9 @@ export function DeskHeader({
   lang,
   setLang,
   goTo,
+  music,
 }: {
+  music?: ReactNode;
   f: Drive;
   count: number;
   copy: Copy;
@@ -89,6 +91,7 @@ export function DeskHeader({
 
         {/* Bahasa + konsep + menu HP */}
         <div className="flex shrink-0 items-center gap-1.5">
+          {music}
           <div className="flex rounded-full bg-white/10 p-0.5" role="group" aria-label="Language">
             {(["en", "id"] as const).map((l) => (
               <button

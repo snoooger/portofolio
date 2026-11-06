@@ -1,6 +1,7 @@
 import { DeskProto } from "@/proto/desk/DeskProto";
 import { EMAIL, GITHUB, LINKEDIN } from "@/proto/desk/copy";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { LITE_SCRIPT } from "@/proto/desk/quality";
 
 /** Data terstruktur (schema.org) untuk mesin pencari: profil & orang di balik portofolio. */
 const jsonLd = {
@@ -32,6 +33,8 @@ const jsonLd = {
 export default function Page() {
   return (
     <>
+      {/* Pilih versi ringan/3D sebelum first paint (lihat quality.ts) */}
+      <script dangerouslySetInnerHTML={{ __html: LITE_SCRIPT }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <DeskProto />
     </>

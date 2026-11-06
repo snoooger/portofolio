@@ -10,7 +10,8 @@ export const OBJECT_FRAC = 0.58;
 /** Geser komposisi ke atas pada layar potret (pecahan setengah-tinggi). */
 const PORTRAIT_LIFT = 0.34;
 
-export const fovFor = (aspect: number) => (aspect < 1 ? 55 : 45);
+import { fovFor } from "./stops";
+export { fovFor };
 
 export type Axes = { dir: THREE.Vector3; right: THREE.Vector3; up: THREE.Vector3 };
 export const makeAxes = (): Axes => ({ dir: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3() });

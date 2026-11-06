@@ -31,7 +31,11 @@ export const QUALITY: Record<Tier, Quality> = {
 /** GPU kelas bawah yang dikenali dari nama renderer WebGL. */
 const WEAK_GPU = /(mali-[gt]?[0-9]{1,2}\b|adreno \(tm\) [2-5][0-9]{2}\b|powervr|intel\(r\) (hd|uhd) graphics [2-6]|swiftshader|llvmpipe|software)/i;
 
+let gpuCache: string | null = null;
 function gpuName() {
+  return (gpuCache ??= readGpu());
+}
+function readGpu() {
   try {
     const gl = document.createElement("canvas").getContext("webgl");
     if (!gl) return "none";
@@ -65,3 +69,16 @@ export function detectTier(): Tier {
 }
 
 export const lowerTier = (t: Tier): Tier => (t === "high" ? "mid" : "low");
+
+/**
+ * WebGL tanpa akselerasi hardware (SwiftShader/llvmpipe, atau WebGL mati): adegan 3D akan berjalan
+ * 1–3 fps dan memblokir thread utama, jadi dipakai versi ringan (poster + konten DOM). Keputusan diambil
+ * SEBELUM first paint oleh skrip inline LITE_SCRIPT (kelas `lite` di <html>), supaya versi ringan tampil
+ * langsung dari HTML server tanpa menunggu hidrasi. `?3d=1` memaksa 3D, `?3d=0` memaksa versi ringan.
+ */
+export function softwareGL() {
+  if (typeof document === "undefined") return false;
+  return document.documentElement.classList.contains("lite");
+}
+
+export const LITE_SCRIPT = `(function(){try{var p=new URLSearchParams(location.search),f=p.get("3d"),lite=false;if(f==="0")lite=true;else if(f!=="1"&&!p.has("q")){var g=document.createElement("canvas").getContext("webgl");if(!g)lite=true;else{var e=g.getExtension("WEBGL_debug_renderer_info"),n=String(e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):g.getParameter(g.RENDERER));if(/swiftshader|llvmpipe|softpipe|software|basic render/i.test(n))lite=true;var l=g.getExtension("WEBGL_lose_context");l&&l.loseContext()}}if(lite)document.documentElement.classList.add("lite")}catch(x){}})()`;

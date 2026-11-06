@@ -21,8 +21,8 @@ import "./globals.css";
 
 const display = Instrument_Serif({ weight: "400", style: ["normal", "italic"], subsets: ["latin"], variable: "--font-instrument-serif", display: "swap" });
 const sans = Inter_Tight({ subsets: ["latin"], variable: "--font-inter-tight", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap" });
-const hand = Caveat({ subsets: ["latin"], weight: ["500", "700"], variable: "--font-caveat", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap", preload: false });
+const hand = Caveat({ subsets: ["latin"], weight: ["500", "700"], variable: "--font-caveat", display: "swap", preload: false });
 // Ragam tulisan tangan untuk post-it (dimuat tanpa preload: dipakai di kanvas setelah adegan siap).
 const marker = Permanent_Marker({ subsets: ["latin"], weight: "400", variable: "--font-marker", preload: false });
 const kalam = Kalam({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-kalam", preload: false });
@@ -70,6 +70,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
+      // Kelas `lite` ditambahkan skrip inline sebelum hidrasi (lihat quality.ts).
+      suppressHydrationWarning
       className={`${display.variable} ${sans.variable} ${mono.variable} ${hand.variable} ${marker.variable} ${kalam.variable} ${patrick.variable} ${shadows.variable} ${gochi.variable} ${pixelify.variable} ${workSans.variable} ${bricolage.variable}`}
     >
       <body className="paper-grain">
